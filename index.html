@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sub Terra II — Au bord de l'enfer</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+<!-- ===================== ÉCRAN TITRE ===================== -->
+<div id="screen-title" class="screen active">
+  <div class="title-art">
+    <img src="assets/images/cover.jpg" alt="Sub Terra II">
+  </div>
+  <div class="title-overlay">
+    <h1 class="game-title">SUB TERRA II</h1>
+    <p class="game-subtitle">Au bord de l'enfer</p>
+    <button id="btn-local-game" class="btn btn-primary btn-lg">Jouer en local (hotseat)</button>
+    <button id="btn-online-game" class="btn btn-primary btn-lg">Jouer en ligne avec des amis</button>
+    <button id="btn-rules" class="btn btn-ghost">Règles du jeu</button>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN SALON (LOBBY) ===================== -->
+<div id="screen-lobby" class="screen">
+  <div class="panel lobby-panel">
+    <button class="btn btn-ghost btn-back" data-back="title">← Retour</button>
+    <h2>Partie en ligne</h2>
+
+    <div class="lobby-section">
+      <h3>Votre nom</h3>
+      <input type="text" id="player-name" class="text-input" placeholder="Votre pseudo" maxlength="16">
+    </div>
+
+    <div class="lobby-section lobby-create">
+      <h3>Créer une partie</h3>
+      <button id="btn-create-room" class="btn btn-primary">Créer un salon</button>
+      <div id="room-code-display" class="room-code-display hidden">
+        <span class="room-label">Code salon :</span>
+        <span id="room-code" class="room-code">ST-XXXX</span>
+        <button id="btn-copy-code" class="btn btn-ghost btn-icon" title="Copier">📋</button>
+        <div id="lobby-status" class="lobby-status">En attente de joueurs...</div>
+        <div id="lobby-players" class="lobby-players"></div>
+        <button id="btn-start-online" class="btn btn-primary btn-lg hidden">Lancer la partie</button>
+      </div>
+    </div>
+
+    <div class="lobby-divider"><span>ou</span></div>
+
+    <div class="lobby-section lobby-join">
+      <h3>Rejoindre une partie</h3>
+      <div class="join-row">
+        <input type="text" id="join-code" class="text-input" placeholder="ST-XXXX" maxlength="7">
+        <button id="btn-join-room" class="btn btn-primary">Rejoindre</button>
+      </div>
+      <div id="join-status" class="lobby-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN RÈGLES ===================== -->
+<div id="screen-rules" class="screen">
+  <div class="panel rules-panel">
+    <button class="btn btn-ghost btn-back" data-back="title">← Retour</button>
+    <h2>Règles essentielles</h2>
+    <div class="rules-content" id="rules-content"></div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN SETUP ===================== -->
+<div id="screen-setup" class="screen">
+  <div class="panel setup-panel">
+    <h2>Préparation de l'expédition</h2>
+
+    <div class="setup-section">
+      <h3>Nombre d'Explorateurs</h3>
+      <div class="player-count" id="player-count">
+        <button data-n="1" class="btn btn-toggle">1 (solo)</button>
+        <button data-n="2" class="btn btn-toggle active">2</button>
+        <button data-n="3" class="btn btn-toggle">3</button>
+        <button data-n="4" class="btn btn-toggle active">4</button>
+        <button data-n="5" class="btn btn-toggle">5</button>
+        <button data-n="6" class="btn btn-toggle">6</button>
+      </div>
+      <p class="hint" id="solo-hint"></p>
+    </div>
+
+    <div class="setup-section">
+      <h3>Difficulté</h3>
+      <div class="difficulty" id="difficulty">
+        <button data-d="beginner" class="btn btn-toggle">Débutant</button>
+        <button data-d="normal" class="btn btn-toggle active">Normal</button>
+        <button data-d="advanced" class="btn btn-toggle">Avancé</button>
+        <button data-d="expert" class="btn btn-toggle">Expert</button>
+      </div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Choix des Explorateurs</h3>
+      <p class="hint">Cliquez sur un Explorateur pour l'ajouter / le retirer de l'équipe (dans l'ordre de jeu).</p>
+      <div class="explorer-gallery" id="explorer-gallery"></div>
+      <div class="team-order" id="team-order">
+        <span class="team-label">Ordre du tour : </span>
+        <span class="team-empty">(sélectionnez des Explorateurs)</span>
+      </div>
+    </div>
+
+    <div class="setup-actions">
+      <button class="btn btn-ghost btn-back" data-back="title">← Retour</button>
+      <button id="btn-start" class="btn btn-primary btn-lg">Commencer l'exploration</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN JEU ===================== -->
+<div id="screen-game" class="screen">
+  <!-- Bandeau haut : Volcan, tour, Chef -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <button id="btn-menu" class="btn btn-ghost btn-icon" title="Menu">☰</button>
+      <span class="turn-label">Tour <span id="turn-number">1</span></span>
+    </div>
+    <div class="volcano-track" id="volcano-track" title="Piste d'éruption"></div>
+    <div class="topbar-right">
+      <div class="leader-medallion" id="leader-medallion" title="Chef d'Expédition">
+        <span class="medallion-icon">★</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="game-main">
+    <!-- Plateau central -->
+    <section id="board-wrap">
+      <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="board-zoom-controls">
+        <button id="zoom-in" class="btn btn-ghost btn-icon">+</button>
+        <button id="zoom-out" class="btn btn-ghost btn-icon">−</button>
+        <button id="zoom-fit" class="btn btn-ghost btn-icon">⊡</button>
+      </div>
+    </section>
+
+    <!-- Panneau droit : Explorateur actif + équipe -->
+    <aside id="side-panel">
+      <div id="active-explorer" class="active-explorer"></div>
+      <div id="team-list" class="team-list"></div>
+    </aside>
+  </main>
+
+  <!-- Bandeau bas : Actions + Journal -->
+  <footer id="actionbar">
+    <div id="action-buttons" class="action-buttons"></div>
+    <div id="peril-zone" class="peril-zone hidden"></div>
+  </footer>
+
+  <!-- Journal flottant -->
+  <div id="log-panel" class="log-panel">
+    <div class="log-header" id="log-header">Journal <span class="log-toggle">▾</span></div>
+    <div id="log-content" class="log-content"></div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN FIN ===================== -->
+<div id="screen-end" class="screen">
+  <div class="end-content" id="end-content"></div>
+</div>
+
+<!-- ===================== SUPERPOSITIONS ===================== -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<div id="toast-zone" class="toast-zone"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

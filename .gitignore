@@ -1,0 +1,14 @@
+# Dépendances de test
+node_modules/
+
+# Fichiers générés par les tests
+tests/*.png
+
+# Fichiers temporaires
+_p*.png
+_*.json
+Subterra2-rules.pdf
+
+# OS
+Thumbs.db
+.DS_Store
