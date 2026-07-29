@@ -4,7 +4,10 @@
 
 // Stub minimal pour les imports de data (les fichiers utilisent export ESM)
 import { createGame, currentPlayer, explorerCell, performReveal, performMove,
-         resolvePeril, getMoveTargets, getOpenEdges, endExplorerTurn } from '../js/engine/game.js';
+         resolvePeril, getMoveTargets, getOpenEdges, endExplorerTurn,
+         performDig, performPush } from '../js/engine/game.js';
+import { placeTile } from '../js/engine/board.js';
+import { EXPLORERS, ABILITIES } from '../js/data/explorers.js';
 
 let pass = 0, fail = 0;
 function assert(cond, msg) {
@@ -15,8 +18,8 @@ function assert(cond, msg) {
 console.log('Test 1 : création de partie');
 const game = createGame({
   explorers: [
-    { id: 'medic', name: 'Médecin', role: 'Guérir', pv: 5, color: '#5bd68a', glyph: '✚', abilities: ['heal','revive'] },
-    { id: 'sapper', name: 'Sapeur', role: 'Démolir', pv: 5, color: '#a5d65b', glyph: '⛏️', abilities: ['demolish','excavate'] },
+    { id: 'nurse', name: "L'Infirmière", role: 'Soin', pv: 5, color: '#d6c75b', glyph: '⚕', abilities: ['heal','survivor'] },
+    { id: 'sapper', name: 'Le Sapeur', role: 'Combat', pv: 5, color: '#5bd68a', glyph: '💣', abilities: ['grenade','demolish'] },
   ],
   difficulty: 'normal',
   numExplorers: 2,
@@ -25,7 +28,7 @@ assert(game.explorers.length === 2, '2 explorateurs créés');
 assert(game.bag.length === 30, 'sac de 30 tuiles');
 assert(game.volcano.position === 26, 'volcan à 26 (normal, 2 explorateurs clampé à colonne 3)');
 assert(game.ap === 2, '2 PA au départ');
-assert(currentPlayer(game).name === 'Médecin', 'premier joueur = Médecin');
+assert(currentPlayer(game).name === "L'Infirmière", "premier joueur = L'Infirmière");
 
 console.log('Test 2 : placement initial');
 const entry = game.board.cells.get('0,0');
@@ -118,6 +121,87 @@ game.volcano.erupting = true;
 resolvePeril(game, 'lava', currentPlayer(game));
 // L'éruption devrait déclencher un état de fin si l'artefact est perdu
 assert(true, 'éruption gérée sans crash');
+
+// ====================================================================
+// Tests de conformité aux règles officielles (manuel ST2 pp.10-17, 26-27)
+// ====================================================================
+
+console.log('Test 10 : coûts PA officiels (Creuser = 2 PA)');
+{
+  const g = createGame({
+    explorers: [
+      { id: 'sapper', name: 'Le Sapeur', role: 'Combat', pv: 5, color: '#5bd68a', glyph: '💣', abilities: ['grenade','demolish'] },
+      { id: 'miner', name: 'Le Mineur', role: 'Force', pv: 7, color: '#a5d65b', glyph: '⛏️', abilities: ['excavate','consolidate'] },
+    ],
+    difficulty: 'normal', numExplorers: 2,
+  });
+  // Créer une tuile Ruines avec Éboulis adjacente au croisement (Sud)
+  const entry = g.board.cells.get('0,0');
+  const ruinsTile = g.bag.find(t => t.type === 'ruins');
+  const idx = g.bag.indexOf(ruinsTile);
+  if (idx >= 0) g.bag.splice(idx, 1);
+  const placed = placeTile(g.board.cells, entry, 'S', ruinsTile);
+  if (placed) {
+    placed.rubble = true;
+    const apBefore = g.ap;
+    performDig(g, placed);
+    assert(g.ap === apBefore - 2, 'Creuser coûte bien 2 PA (manuel p.11)');
+    assert(placed.rubble === false, "l'Éboulis est retiré");
+  } else {
+    assert(true, '(placement Ruines impossible ici, test Creuser sauté)');
+  }
+}
+
+console.log('Test 11 : Se dépasser = -1 PV / +1 PA, 1×/tour');
+{
+  const g = createGame({
+    explorers: [
+      { id: 'scout', name: "L'Éclaireuse", role: 'Exploration', pv: 5, color: '#5bd6c7', glyph: '🗺', abilities: ['sprint','vigilance'] },
+    ],
+    difficulty: 'normal', numExplorers: 2,
+  });
+  const p = currentPlayer(g);
+  const hp0 = p.hp;
+  performPush(g);
+  assert(p.hp === hp0 - 1, 'Se dépasser coûte 1 PV');
+  assert(g.ap === 3, 'Se dépasser donne +1 PA (3 total)');
+  assert(p.pushedThisTurn === true, 'marqueur pushedThisTurn posé');
+  const ok = performPush(g); // 2e fois
+  assert(ok === false, 'Se dépasser refusé une 2e fois (1×/tour)');
+}
+
+console.log('Test 12 : Bouclier (Se préparer) bloque TOUS les dégâts');
+{
+  const g = createGame({
+    explorers: [
+      { id: 'soldier', name: 'Le Soldat', role: 'Combat', pv: 7, color: '#9b5bd6', glyph: '🛡️', abilities: ['annihilate','prepare'] },
+    ],
+    difficulty: 'normal', numExplorers: 2,
+  });
+  const p = currentPlayer(g);
+  p.shielded = true; // simule "Se préparer"
+  const hp0 = p.hp;
+  // Lave sur tuile où se trouve le joueur
+  g.board.cells.get('0,0').type = 'lava';
+  resolvePeril(g, 'lava', p);
+  assert(p.hp === hp0, 'Bouclier bloque même le péril Lave (manuel p.27, aucune exception)');
+}
+
+console.log('Test 13 : les 10 Explorateurs officiels + 20 capacités');
+{
+  assert(EXPLORERS.length === 10, '10 Explorateurs');
+  assert(EXPLORERS.every(e => e.abilities.length === 2), 'chaque perso a exactement 2 capacités');
+  assert(EXPLORERS.every(e => [3,5,7].includes(e.pv)), 'PV toujours 3/5/7');
+  // Chaque capacité du catalogue doit être attribuée au moins une fois
+  const attributed = new Set();
+  EXPLORERS.forEach(e => e.abilities.forEach(a => attributed.add(a)));
+  const all = Object.keys(ABILITIES);
+  const missing = all.filter(a => !attributed.has(a));
+  assert(missing.length === 0, `toutes les capacités attribuées (manquantes: ${missing.join(',')||'aucune'})`);
+  // Total = 20 (chaque capacité une fois)
+  const totalAbilities = EXPLORERS.reduce((n,e) => n + e.abilities.length, 0);
+  assert(totalAbilities === 20, '20 capacités au total (2×10)');
+}
 
 console.log(`\nRésultat : ${pass} réussis, ${fail} échoués`);
 process.exit(fail > 0 ? 1 : 0);

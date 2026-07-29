@@ -21,7 +21,9 @@ import { refreshHUD } from './ui/hud.js';
 import { renderActionButtons } from './ui/actions.js';
 import { showPerilZone, hidePerilZone, rollAndShow } from './ui/dice.js';
 import { initLog, refreshLog, toast, showModal, hideModal } from './ui/log.js';
+import { showHelp, hideHelp } from './ui/help.js';
 import { initLobby, setStartOnlineGameCallback, setBuildSetupScreen } from './ui/lobby.js';
+import { avatarHTML } from './ui/avatar.js';
 import { net } from './net/peer.js';
 import { isOnline, isHost, isPeer, broadcastGameState, applyRemoteState, sendAction, setupGlobalHandlers } from './net/multiplayer.js';
 import { deserializeGame } from './net/serialize.js';
@@ -143,10 +145,7 @@ function buildSetupScreen() {
   gallery.innerHTML = EXPLORERS.map(ex => `
     <div class="explorer-card" data-id="${ex.id}">
       <span class="pick-badge"></span>
-      <div class="avatar">
-        <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="${ex.color}"/>
-        <text x="24" y="30" text-anchor="middle" font-size="20">${ex.glyph}</text></svg>
-      </div>
+      <div class="avatar">${avatarHTML(ex, 60, { rounded: true })}</div>
       <div class="ex-name">${ex.name}</div>
       <div class="ex-hp">${'❤'.repeat(ex.pv)} (${ex.pv} PV)</div>
       <div class="ex-role">${ex.role}</div>
@@ -517,25 +516,27 @@ function isOnCellLocal(explorer, cell) {
   return explorer.x === cell.x && explorer.y === cell.y;
 }
 
-/* --- Courir = 3 déplacements pour 1 PA --- */
+/* --- Courir = 2 PA pour jusqu'à 3 déplacements (manuel p.11) --- */
 function startRun() {
   const game = ui.game;
   const p = currentPlayer(game);
   const targets = getMoveTargets(game, p);
   if (targets.length === 0) { toast('Aucune tuile atteignable.', 'bad'); return; }
+  if (game.ap < 2) { toast('Pas assez de PA pour Courir (2 PA).', 'bad'); return; }
+  // Dépenser les 2 PA une seule fois au début de la course
+  game.ap -= 2;
   ui.pendingAction = 'run';
   let stepsLeft = 3;
-  toast('Courir : 3 déplacements. Cliquez une tuile.', '');
+  toast("Courir : jusqu'à 3 déplacements. Cliquez une tuile.", '');
   const doStep = () => {
     highlightMoveTargets(game, ui, getMoveTargets(game, p), (t) => {
-      performMove(game, t.cell);
+      performMove(game, t.cell, 0);  // déplacement gratuit (les 2 PA déjà dépensés)
       stepsLeft--;
       fullRender();
       if (stepsLeft > 0 && getMoveTargets(game, p).length > 0 && p.state === 'active') {
         toast(`Encore ${stepsLeft} déplacement(s) (ou cliquez ailleurs pour finir).`, '');
         doStep();
       } else {
-        // Consommer 1 PA total pour la course
         afterAction();
       }
     });

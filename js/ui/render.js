@@ -4,6 +4,7 @@
 
 import { TILE_TYPES, DIRS, DELTA } from '../data/tiles.js';
 import { key as cellKey } from '../engine/board.js';
+import { avatarPath } from './avatar.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const TILE = 88;          // taille d'une tuile en px
@@ -317,16 +318,23 @@ function drawMeeples(layer, cx, cy, explorers, game, ui) {
     mg.dataset.explorerId = e.id;
     // Glow si courant
     mg.appendChild(el('circle', { class: 'meeple-glow', r: 11 }));
-    // Corps du meeple
+    // Cercle coloré de fond (identification rapide même si image peu lisible)
     const body = el('g', { class: 'meeple-body' });
-    body.appendChild(el('circle', { cx: 0, cy: -4, r: 4, fill: e.color, stroke: '#000', 'stroke-width': 1 }));
-    body.appendChild(el('path', {
-      d: 'M -6 6 Q 0 -2 6 6 L 4 10 L 2 6 L 0 12 L -2 6 L -4 10 Z',
-      fill: e.color, stroke: '#000', 'stroke-width': 0.8,
-    }));
+    body.appendChild(el('circle', { cx: 0, cy: 0, r: 9, fill: e.color, stroke: '#000', 'stroke-width': 1.2 }));
+    // Image de l'avatar (SVG) si disponible — sinon le cercle coloré reste
+    const imgEl = el('image', {
+      x: -9, y: -9, width: 18, height: 18,
+      preserveAspectRatio: 'xMidYMid slice',
+    });
+    imgEl.setAttributeNS('http://www.w3.org/1999/xlink', 'href', avatarPath(e.defId || e.id));
+    imgEl.setAttribute('href', avatarPath(e.defId || e.id));
+    // Si l'image 404, on la masque ET on ajoute l'initiale par-dessus le cercle
+    imgEl.addEventListener('error', () => {
+      imgEl.style.display = 'none';
+      mg.appendChild(el('text', { 'text-anchor': 'middle', y: 3, 'font-size': 10, fill: '#fff', 'font-weight': 'bold', 'pointer-events': 'none' }, [document.createTextNode(e.name[0])]));
+    });
+    body.appendChild(imgEl);
     mg.appendChild(body);
-    // Initiale du nom
-    mg.appendChild(el('text', { 'text-anchor': 'middle', y: -7, 'font-size': 6, fill: '#fff', 'font-weight': 'bold' }, [document.createTextNode(e.name[0])]));
     // Indicateur d'objet
     if (e.item === 'key') {
       mg.appendChild(el('text', { x: 6, y: -8, 'font-size': 9 }, [document.createTextNode('🔑')]));

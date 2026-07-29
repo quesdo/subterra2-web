@@ -98,7 +98,7 @@ export const ABILITIES = {
   },
   revive: {
     id: 'revive', name: 'Ranimer', cost: 1, passive: false, uses: null,
-    desc: "Choisissez un Explorateur : s'il est à terre, +2 PV ; sinon +1 PV.",
+    desc: "Choisissez un autre Explorateur : s'il est à terre, +2 PV ; sinon +1 PV.",
     effect: 'revive',
   },
   purify: {
@@ -108,72 +108,71 @@ export const ABILITIES = {
   },
 };
 
-/* Les 10 Explorateurs. Composition : chaque perso a un rôle distinctif
-   et 2 capacités (1 passive caractéristique + 1 active), sauf exceptions.
-   PV répartis 3/5/7 selon le rôle (fragiles=3, équilibrés=5, résistants=7). */
+/* Les 10 Explorateurs officiels (manuel pp.26-27). Chaque perso a un
+   domaine, des PV (3/5/7) et 2 capacités. L'affectation capacité→perso
+   suit fidèlement la notice. */
 export const EXPLORERS = [
   {
-    id: 'scholar', name: 'Érudite', role: 'Érudite', pv: 5, color: '#5b8dd6',
-    glyph: '📚',
-    abilities: ['scholar', 'scope'],
-    blurb: "Cartographe savante. Choisit ses tuiles.",
+    id: 'aristocrat', name: "L'Aristocrate", role: 'Exploration', pv: 3, color: '#d6a55b',
+    glyph: '🎓',
+    abilities: ['scholar', 'adventurer'],
+    blurb: "Domaine Exploration (3 PV). Choisit ses tuiles et relance les dés.",
   },
   {
-    id: 'adventurer', name: 'Aventurière', role: 'Aventurière', pv: 5, color: '#d65b5b',
-    glyph: '🎲',
-    abilities: ['adventurer', 'snipe'],
-    blurb: "Joueuse audacieuse. Relance les dés.",
-  },
-  {
-    id: 'ranger', name: 'Éclaireuse', role: 'Agile', pv: 5, color: '#5bd66a',
+    id: 'thief', name: 'La Voleuse', role: 'Exploration', pv: 3, color: '#5bd66a',
     glyph: '🏃',
-    abilities: ['agile', 'sprint'],
-    blurb: "Passe partout. Ignore les Éboulis.",
+    abilities: ['agile', 'illuminate'],
+    blurb: "Domaine Exploration (3 PV). Ignore les Éboulis, illumine deux fois.",
   },
   {
-    id: 'illuminator', name: 'Illuminateur', role: 'Illuminer', pv: 5, color: '#d6c75b',
-    glyph: '🔦',
-    abilities: ['illuminate', 'excavate'],
-    blurb: "Révèle deux fois plus vite.",
+    id: 'scout', name: "L'Éclaireuse", role: 'Exploration', pv: 5, color: '#5bd6c7',
+    glyph: '🗺',
+    abilities: ['sprint', 'vigilance'],
+    blurb: "Domaine Exploration (5 PV). Sprinte et neutralise les pièges.",
   },
   {
-    id: 'sprinter', name: 'Coureur', role: 'Sprinter', pv: 7, color: '#5bd6c7',
-    glyph: '💨',
-    abilities: ['sprint', 'prepare'],
-    blurb: "Vif et résistant. Se déplace loin.",
-  },
-  {
-    id: 'guardian_watch', name: 'Vigile', role: 'Vigilance', pv: 7, color: '#9b5bd6',
-    glyph: '🛡️',
-    abilities: ['vigilance', 'annihilate'],
-    blurb: "Protecteur. Neutralise les pièges.",
-  },
-  {
-    id: 'commander', name: 'Capitaine', role: 'Ordonner', pv: 5, color: '#d65bb0',
+    id: 'commander', name: 'Le Capitaine', role: 'Commandement', pv: 5, color: '#d65bb0',
     glyph: '🎖️',
-    abilities: ['order', 'grenade'],
-    blurb: "Mène l'équipe. Ordonne des déplacements.",
+    abilities: ['order', 'research'],
+    blurb: "Domaine Commandement (5 PV). Ordonne des déplacements, place des tuiles Journal.",
   },
   {
-    id: 'aristocrat', name: 'Aristocrate', role: 'Rechercher', pv: 3, color: '#d6a55b',
-    glyph: '📖',
-    abilities: ['research', 'consolidate'],
-    blurb: "Possède les tuiles Journal. Fragile.",
-  },
-  {
-    id: 'sapper', name: 'Sapeur', role: 'Démolir', pv: 5, color: '#a5d65b',
+    id: 'miner', name: 'Le Mineur', role: 'Force', pv: 7, color: '#a5d65b',
     glyph: '⛏️',
-    abilities: ['demolish', 'excavate'],
-    blurb: "Détruit les murs. Fraye des passages.",
+    abilities: ['excavate', 'consolidate'],
+    blurb: "Domaine Force (7 PV). Excave et consolide les tuiles.",
   },
   {
-    id: 'medic', name: 'Médecin', role: 'Guérir', pv: 5, color: '#5bd68a',
-    glyph: '✚',
-    abilities: ['heal', 'revive'],
-    blurb: "Soigne et ranime les compagnons.",
+    id: 'sniper', name: 'La Tireuse d\'Élite', role: 'Combat', pv: 5, color: '#d65b5b',
+    glyph: '🎯',
+    abilities: ['scope', 'snipe'],
+    blurb: "Domaine Combat (5 PV). Repère et abat les Gardiens à distance.",
+  },
+  {
+    id: 'sapper', name: 'Le Sapeur', role: 'Combat', pv: 5, color: '#5bd68a',
+    glyph: '💣',
+    abilities: ['grenade', 'demolish'],
+    blurb: "Domaine Combat (5 PV). Grenade les ennemis et démolit les murs.",
+  },
+  {
+    id: 'soldier', name: 'Le Soldat', role: 'Combat', pv: 7, color: '#9b5bd6',
+    glyph: '🛡️',
+    abilities: ['annihilate', 'prepare'],
+    blurb: "Domaine Combat (7 PV). Anéantit et se prépare (Bouclier).",
+  },
+  {
+    id: 'nurse', name: "L'Infirmière", role: 'Soin', pv: 5, color: '#d6c75b',
+    glyph: '⚕',
+    abilities: ['heal', 'survivor'],
+    blurb: "Domaine Soin (5 PV). Soigne à distance et encaisse le Trébucher.",
+  },
+  {
+    id: 'priestess', name: 'La Prêtresse', role: 'Soin', pv: 3, color: '#5b8dd6',
+    glyph: '🕯',
+    abilities: ['revive', 'purify'],
+    blurb: "Domaine Soin (3 PV). Ranime et purifie les tuiles des Gardiens.",
   },
 ];
 
-/* Note : les capacités Survivor/Purifier/Annihilate sont alternatives
-   attribuables. La liste couvre les 20 capacités du manuel via les
-   combinaisons ci-dessus (chaque capacité apparaît au moins une fois). */
+/* Note : les 20 capacités du manuel sont toutes attribuées, chacune
+   exactement une fois (2 capacités × 10 Explorateurs = 20). */

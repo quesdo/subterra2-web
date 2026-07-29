@@ -114,51 +114,75 @@
   </div>
 </div>
 
-<!-- ===================== ÉCRAN JEU ===================== -->
+<!-- ===================== ÉCRAN JEU =====================
+     La carte est le FOND (plein écran). Tous les autres éléments
+     (hero, équipe, actions, topbar) flottent par-dessus en overlay. -->
 <div id="screen-game" class="screen">
-  <!-- Bandeau haut : Volcan, tour, Chef -->
+  <!-- CARTE EN FOND -->
+  <section id="board-wrap">
+    <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="board-zoom-controls">
+      <button id="zoom-in" class="btn btn-ghost btn-icon" title="Zoom +">+</button>
+      <button id="zoom-out" class="btn btn-ghost btn-icon" title="Zoom −">−</button>
+      <button id="zoom-fit" class="btn btn-ghost btn-icon" title="Recentrer">⊡</button>
+    </div>
+  </section>
+
+  <!-- BANNIÈRE HAUT (overlay) : progression, tours restants, éruption -->
   <header id="topbar">
     <div class="topbar-left">
       <button id="btn-menu" class="btn btn-ghost btn-icon" title="Menu">☰</button>
-      <span class="turn-label">Tour <span id="turn-number">1</span></span>
+      <button id="btn-help" class="btn btn-ghost btn-icon" title="Aide (règles, actions, capacités)">?</button>
     </div>
-    <div class="volcano-track" id="volcano-track" title="Piste d'éruption"></div>
+    <div class="progress-rail" id="progress-rail">
+      <div class="progress-fill" id="progress-fill"></div>
+      <div class="progress-ticks" id="progress-ticks"></div>
+      <div class="turn-badge" id="turn-badge" title="Tours restants avant éruption">
+        <span class="turn-badge-label">RESTANT</span>
+        <span id="turn-number">—</span>
+      </div>
+    </div>
     <div class="topbar-right">
+      <div class="eruption-indicator" id="eruption-indicator" title="Piste d'éruption">
+        <span class="eruption-icon">🔥</span>
+        <span class="eruption-text" id="eruption-text">—</span>
+      </div>
       <div class="leader-medallion" id="leader-medallion" title="Chef d'Expédition">
         <span class="medallion-icon">★</span>
       </div>
     </div>
+    <div class="volcano-track sr-only" id="volcano-track" title="Piste d'éruption" aria-hidden="true"></div>
   </header>
 
-  <main id="game-main">
-    <!-- Plateau central -->
-    <section id="board-wrap">
-      <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div id="board-zoom-controls">
-        <button id="zoom-in" class="btn btn-ghost btn-icon">+</button>
-        <button id="zoom-out" class="btn btn-ghost btn-icon">−</button>
-        <button id="zoom-fit" class="btn btn-ghost btn-icon">⊡</button>
-      </div>
-    </section>
+  <!-- HERO + STATS (overlay gauche, sur la carte) -->
+  <aside id="active-panel">
+    <div id="active-explorer" class="active-explorer"></div>
+    <div id="abilities-box" class="abilities-box"></div>
+  </aside>
 
-    <!-- Panneau droit : Explorateur actif + équipe -->
-    <aside id="side-panel">
-      <div id="active-explorer" class="active-explorer"></div>
-      <div id="team-list" class="team-list"></div>
-    </aside>
-  </main>
+  <!-- ÉQUIPE + JOURNAL (overlay droit, sur la carte) -->
+  <aside id="side-panel">
+    <div class="side-title">Expédition</div>
+    <div id="team-list" class="team-list"></div>
+    <div id="log-panel" class="log-panel">
+      <div class="log-header" id="log-header">Journal <span class="log-toggle">▾</span></div>
+      <div id="log-content" class="log-content"></div>
+    </div>
+  </aside>
 
-  <!-- Bandeau bas : Actions + Journal -->
+  <!-- ACTIONS (overlay bas, sur la carte) -->
   <footer id="actionbar">
-    <div id="action-buttons" class="action-buttons"></div>
-    <div id="peril-zone" class="peril-zone hidden"></div>
+    <div id="action-center" class="action-center">
+      <div id="action-buttons" class="action-buttons"></div>
+      <div id="peril-zone" class="peril-zone hidden"></div>
+    </div>
+    <div id="end-turn-wrap" class="end-turn-wrap">
+      <button id="end-turn-btn" class="end-turn-btn" data-action="endTurn">
+        <span class="et-icon">🎲</span>
+        <span class="et-label">FIN DU TOUR</span>
+      </button>
+    </div>
   </footer>
-
-  <!-- Journal flottant -->
-  <div id="log-panel" class="log-panel">
-    <div class="log-header" id="log-header">Journal <span class="log-toggle">▾</span></div>
-    <div id="log-content" class="log-content"></div>
-  </div>
 </div>
 
 <!-- ===================== ÉCRAN FIN ===================== -->
@@ -170,6 +194,9 @@
 <div id="modal-overlay" class="modal-overlay hidden">
   <div class="modal" id="modal-box"></div>
 </div>
+
+<!-- Overlay d'aide (règles, actions, capacités, périls, tuiles, gardiens, volcan) -->
+<div id="help-overlay" class="hidden"></div>
 
 <div id="toast-zone" class="toast-zone"></div>
 

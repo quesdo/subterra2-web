@@ -17,12 +17,12 @@ export const PERIL_FACES = {
   collapse: {
     id: 'collapse', label: 'Effondrement', glyph: '💥',
     color: '#7d4536',
-    desc: "Lancez le dé. Si le résultat correspond au numéro d'une tuile Ruines sans Éboulis, elle s'effondre (Éboulis posé, Explorateurs sur la tuile perdent 1 PV, Gardiens éliminés).",
+    desc: "Lancez le dé. Si le résultat correspond au numéro d'une tuile Ruines sans Éboulis, elle s'effondre (Éboulis posé, Explorateurs sur la tuile perdent 2 PV, Gardiens éliminés).",
   },
   trap: {
     id: 'trap', label: 'Déclencher un piège', glyph: '⚔',
     color: '#b8401d',
-    desc: "Déclenchez le Piège à pics où vous êtes, et les Pièges à fléchettes où vous êtes + adjacents.",
+    desc: "Déclenchez le Piège à pics où vous êtes (2 PV), et les Pièges à fléchettes où vous êtes + adjacents (1 PV).",
   },
   wake: {
     id: 'wake', label: 'Réveiller un Gardien', glyph: '👁',

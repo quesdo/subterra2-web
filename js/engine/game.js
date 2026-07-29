@@ -143,8 +143,8 @@ export function canDoAction(game, actionId) {
     case 'heal':      return game.ap >= 1 && (p.hp < p.maxHp || hasAllyHere(game, p));
     case 'pickup':    return game.ap >= 1 && getItemHere(game, p);
     case 'attack':    return game.ap >= 1 && hasEnemyHere(game, p);
-    case 'run':       return game.ap >= 1 && getMoveTargets(game, p).length > 0;
-    case 'dig':       return game.ap >= 1 && getDigTargets(game, p).length > 0;
+    case 'run':       return game.ap >= 2 && getMoveTargets(game, p).length > 0;
+    case 'dig':       return game.ap >= 2 && getDigTargets(game, p).length > 0;
     case 'push':      return !p.pushedThisTurn && p.state === 'active' && p.hp > 0;
     case 'crawl':     return p.state === 'down' && getMoveTargets(game, p, true).length > 0;
     case 'escape':    return canEscape(game, p);
@@ -355,12 +355,12 @@ export function performRunStep(game, targetCell) {
   return performMove(game, targetCell);
 }
 
-/* --- Creuser --- */
+/* --- Creuser (2 PA selon le manuel p.11) --- */
 export function performDig(game, targetCell) {
   if (!targetCell.rubble) return false;
   targetCell.rubble = false;
   log(game, `⛏ ${currentPlayer(game).name} dégage les Éboulis.`);
-  spendAP(game, 1);
+  spendAP(game, 2);
   return true;
 }
 
@@ -759,8 +759,9 @@ export function resolvePeril(game, faceId, actingExplorer) {
       const hit = ruinsCells.find(c => c.ruinsNum === roll);
       if (hit) {
         hit.rubble = true;
+        // Manuel p.14 : tous les Explorateurs sur la tuile perdent 2 PV (❤❤)
         for (const e of game.explorers) {
-          if (isOnCell(e, hit) && e.state === 'active') damage(game, e, 1, 'effondrement');
+          if (isOnCell(e, hit) && e.state === 'active') damage(game, e, 2, 'effondrement');
         }
         const n = removeAllGuardians(game.pool, hit);
         log(game, `💥 Ruines n°${roll} effondrées : Éboulis posé, ${n} Gardien(s) éliminé(s).`, 'bad');
@@ -804,9 +805,10 @@ export function resolvePeril(game, faceId, actingExplorer) {
 }
 
 function triggerSpikes(game, cell) {
+  // Manuel p.16 : tous les Explorateurs sur la tuile perdent 2 PV (❤❤)
   for (const e of game.explorers) {
     if (isOnCell(e, cell) && e.state === 'active' && !hasVigilanceProt(e)) {
-      damage(game, e, 1, 'piège à pics');
+      damage(game, e, 2, 'piège à pics');
     }
   }
   log(game, `⚔ Piège à pics déclenché sur (${cell.x},${cell.y}).`, 'bad');
@@ -829,7 +831,10 @@ function hasVigilanceProt(explorer) {
 }
 
 function damage(game, explorer, amount, source) {
-  if (explorer.shielded && source !== 'trébucher' && source !== 'lave') return;
+  // Manuel p.27 (Se préparer) : impossible de perdre des PV jusqu'au début
+  // du prochain tour, AUCUNE exception (ni lave, ni trébucher, ni pièges).
+  // Seul « Se dépasser » contourne le Bouclier (et n'appelle pas damage()).
+  if (explorer.shielded) return;
   explorer.hp = Math.max(0, explorer.hp - amount);
   if (explorer.hp <= 0 && explorer.state === 'active') {
     explorer.state = 'down';

@@ -8,6 +8,7 @@ tests/*.png
 _p*.png
 _*.json
 Subterra2-rules.pdf
+Subterra2-rules*.pdf
 
 # OS
 Thumbs.db
