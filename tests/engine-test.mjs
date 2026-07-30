@@ -18,7 +18,7 @@ function assert(cond, msg) {
 console.log('Test 1 : création de partie');
 const game = createGame({
   explorers: [
-    { id: 'nurse', name: "L'Infirmière", role: 'Soin', pv: 5, color: '#d6c75b', glyph: '⚕', abilities: ['heal','survivor'] },
+    { id: 'nurse', name: 'La Guérisseuse', role: 'Soin', pv: 5, color: '#d6c75b', glyph: '⚕', abilities: ['heal','survivor'] },
     { id: 'sapper', name: 'Le Sapeur', role: 'Combat', pv: 5, color: '#5bd68a', glyph: '💣', abilities: ['grenade','demolish'] },
   ],
   difficulty: 'normal',
@@ -28,7 +28,7 @@ assert(game.explorers.length === 2, '2 explorateurs créés');
 assert(game.bag.length === 30, 'sac de 30 tuiles');
 assert(game.volcano.position === 26, 'volcan à 26 (normal, 2 explorateurs clampé à colonne 3)');
 assert(game.ap === 2, '2 PA au départ');
-assert(currentPlayer(game).name === "L'Infirmière", "premier joueur = L'Infirmière");
+assert(currentPlayer(game).name === 'La Guérisseuse', "premier joueur = La Guérisseuse");
 
 console.log('Test 2 : placement initial');
 const entry = game.board.cells.get('0,0');

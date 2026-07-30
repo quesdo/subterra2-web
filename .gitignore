@@ -9,6 +9,7 @@ _p*.png
 _*.json
 Subterra2-rules.pdf
 Subterra2-rules*.pdf
+pdf_pages_tmp/
 
 # OS
 Thumbs.db

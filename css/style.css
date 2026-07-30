@@ -654,6 +654,15 @@ html, body {
 .action-btn:active:not(:disabled) { transform: translateY(0); }
 .action-btn:disabled { opacity: .3; cursor: not-allowed; filter: grayscale(.6); }
 .action-btn .ab-icon { font-size: 22px; line-height: 1; }
+.action-btn .ab-icon-img {
+  width: 78%; height: 78%;
+  object-fit: contain;
+  border-radius: 50%;
+  pointer-events: none;
+  /* adoucit le fond carré des icônes officielles sur le bouton rond */
+  mask-image: radial-gradient(circle, #000 72%, transparent 73%);
+  -webkit-mask-image: radial-gradient(circle, #000 72%, transparent 73%);
+}
 .action-btn .ab-label {
   position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
   font-size: 9px; white-space: nowrap; color: var(--c-text-dim);
@@ -1118,6 +1127,51 @@ html, body {
 .ar-tag.passive { background: #6ab46a; color: #0a1a0a; }
 .ar-uses { font-size: 10px; color: var(--c-text-mute); }
 .ar-desc { color: var(--c-text-dim); font-size: 12px; line-height: 1.45; }
+
+/* ============================================================
+   TOOLTIPS (survol des actions / capacités)
+   ============================================================ */
+.tip-card {
+  position: fixed;
+  z-index: 250;
+  min-width: 200px; max-width: 280px;
+  background: linear-gradient(180deg, #2a2018, #1c1410);
+  border: 1px solid var(--c-border);
+  border-top: 2px solid var(--c-ember);
+  border-radius: 8px;
+  padding: 10px 13px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.65), 0 0 0 1px rgba(232,85,42,.08);
+  pointer-events: none;
+  animation: tip-in .14s ease-out;
+}
+.tip-card.hidden { display: none; }
+@keyframes tip-in {
+  from { opacity: 0; transform: translateY(4px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+.tip-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 5px;
+}
+.tip-title {
+  font-weight: 700; color: var(--c-text); font-size: 14px;
+  letter-spacing: .2px;
+}
+.tip-cost {
+  font-size: 11px; font-weight: 700;
+  color: #1a0f08;
+  background: var(--c-ember);
+  padding: 1px 8px; border-radius: 10px;
+  white-space: nowrap;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+/* Les capacités passives ont un coût vert */
+.tip-card .tip-cost:is([data-passive]) { background: #6ab46a; }
+.tip-desc {
+  color: var(--c-text-dim); font-size: 12px; line-height: 1.5;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: 6px;
+}
 
 /* ============================================================
    RESPONSIVE

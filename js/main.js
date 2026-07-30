@@ -92,6 +92,20 @@ document.getElementById('btn-rules').addEventListener('click', () => {
   buildRulesScreen();
   showScreen('screen-rules');
 });
+// Bouton d'aide (?) dans la topbar : ouvre l'overlay d'aide en jeu
+const btnHelp = document.getElementById('btn-help');
+if (btnHelp) {
+  btnHelp.addEventListener('click', () => showHelp());
+}
+// Touche Échap : ferme l'aide (priorité) puis les modales
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const help = document.getElementById('help-overlay');
+    if (help && !help.classList.contains('hidden')) { hideHelp(); return; }
+    const modal = document.getElementById('modal-overlay');
+    if (modal && !modal.classList.contains('hidden')) { hideModal(); }
+  }
+});
 document.querySelectorAll('[data-back]').forEach(btn => {
   btn.addEventListener('click', () => showScreen('screen-' + btn.dataset.back));
 });
