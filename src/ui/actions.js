@@ -4,6 +4,16 @@ import { canDoAction } from '../engine/actions.js';
 import { canUseAbility } from '../engine/abilities.js';
 import { getMoveTargets, getRevealTargets, getDigTargets } from '../engine/actions.js';
 
+const ACTION_ICONS = {
+  reveal:  '<img src="assets/Personnages/bouton_Découverte.svg" alt="" class="act-icon">',
+  move:    '<img src="assets/Personnages/bouton_Déplacement.svg" alt="" class="act-icon">',
+  explore: '<img src="assets/Personnages/bouton_Découverte.svg" alt="" class="act-icon">',
+  dig:     '<img src="assets/Personnages/bouton_Creuser.svg" alt="" class="act-icon">',
+  attack:  '<img src="assets/Personnages/bouton_Combat.svg" alt="" class="act-icon">',
+  manage:  '<img src="assets/Personnages/bouton_Clé.svg" alt="" class="act-icon">',
+  run:     '<img src="assets/Personnages/bouton_Déplacement.svg" alt="" class="act-icon">',
+};
+
 const ACTION_DEFS = [
   { id: 'reveal',  label: 'Révéler',    cost: 1 },
   { id: 'move',    label: 'Se déplacer', cost: 1 },
@@ -66,7 +76,7 @@ export function renderActionButtons(state, ui) {
   for (const action of ACTION_DEFS) {
     const btn = document.createElement('button');
     btn.className = 'act-btn' + (action.special ? ' special' : '');
-    btn.textContent = `${action.label} (${action.cost} PA)`;
+    btn.innerHTML = `${ACTION_ICONS[action.id] || ''} ${action.label} (${action.cost} PA)`;
     btn.disabled = !canDoAction(state, action.id);
     btn.addEventListener('click', () => ui.onAction(action.id));
     bar.appendChild(btn);

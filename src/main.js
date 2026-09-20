@@ -66,7 +66,7 @@ function buildSetupScreen() {
   gallery.innerHTML = EXPLORERS.map(ex => `
     <div class="explorer-card" data-id="${ex.id}">
       <span class="pick-badge"></span>
-      <div class="avatar" style="background:${ex.color};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">${ex.glyph}</div>
+      <div class="avatar" style="border:3px solid ${ex.color};overflow:hidden;border-radius:50%"><img src="assets/images/explorers/${ex.id}.svg" alt="" style="width:100%;height:100%;object-fit:cover"></div>
       <div class="ex-name">${ex.name}</div>
       <div class="ex-hp">${'❤'.repeat(ex.pv)} (${ex.pv} PV)</div>
       <div class="ex-role">${ex.role}</div>

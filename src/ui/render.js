@@ -32,6 +32,26 @@ const TYPE_ICONS = {
   sanctuary: '⛩',
 };
 
+const TILE_IMAGE_MAP = {
+  normale: 'normal',
+  pont: 'bridge',
+  cle: 'key',
+  lave: 'lava',
+  piege_pics: 'spikes',
+  piege_flechettes: 'darts',
+  ruines: 'ruins',
+  gardien: 'guardian',
+  normal: 'normal',
+  guardian: 'guardian',
+  entry: 'entree',
+};
+
+const TILES_WITHOUT_IMAGES = new Set(['journal', 'sanctuary']);
+
+function tileImageFile(cell) {
+  return TILE_IMAGE_MAP[cell.type] || null;
+}
+
 let svgEl = null;
 let transformGroup = null;
 let pan = { x: 0, y: 0 };
@@ -52,6 +72,10 @@ export function initBoard(svg) {
   transformGroup = document.createElementNS(ns, 'g');
   transformGroup.setAttribute('id', 'board-transform');
   svg.appendChild(transformGroup);
+
+  const defs = document.createElementNS(ns, 'defs');
+  defs.setAttribute('id', 'board-defs');
+  transformGroup.appendChild(defs);
 
   const layers = ['tiles-layer', 'markers-layer', 'explorers-layer', 'guardians-layer', 'highlights-layer'];
   for (const id of layers) {
@@ -148,7 +172,16 @@ export function renderBoard(state, ui) {
   guardiansLayer.innerHTML = '';
   highlightsLayer.innerHTML = '';
 
-  for (const cell of state.board.cells.values()) {
+  const defs = transformGroup.querySelector('#board-defs');
+  if (defs) defs.innerHTML = '';
+
+  const sortedCells = [...state.board.cells.values()].sort((a, b) => {
+    if (a.isEntry && !a.exitDir && b.isEntry && b.exitDir) return -1;
+    if (b.isEntry && !b.exitDir && a.isEntry && a.exitDir) return 1;
+    return 0;
+  });
+
+  for (const cell of sortedCells) {
     renderCell(tilesLayer, markersLayer, guardiansLayer, cell, state, ns);
   }
 
@@ -169,72 +202,141 @@ function renderCell(tilesLayer, markersLayer, guardiansLayer, cell, state, ns) {
   g.dataset.y = cell.y;
 
   const color = cell.flipped ? FLIPPED_COLOR : (TILE_COLORS[cell.type] || TILE_COLORS.normale);
+  const imgFile = cell.flipped ? null : tileImageFile(cell);
+  const hasImage = imgFile !== null;
 
-  const rect = document.createElementNS(ns, 'rect');
-  rect.setAttribute('class', 'tile-rect');
-  rect.setAttribute('x', x);
-  rect.setAttribute('y', y);
-  rect.setAttribute('width', TILE_SIZE);
-  rect.setAttribute('height', TILE_SIZE);
-  rect.setAttribute('fill', color);
-  rect.setAttribute('rx', 3);
-  rect.setAttribute('stroke', 'rgba(0,0,0,.4)');
-  rect.setAttribute('stroke-width', 1);
-  g.appendChild(rect);
+  if (cell.flipped) {
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('class', 'tile-rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', TILE_SIZE);
+    rect.setAttribute('height', TILE_SIZE);
+    rect.setAttribute('fill', FLIPPED_COLOR);
+    rect.setAttribute('rx', 3);
+    rect.setAttribute('stroke', 'rgba(0,0,0,.4)');
+    rect.setAttribute('stroke-width', 1);
+    g.appendChild(rect);
 
-  if (cell.isEntry) {
-    const label = document.createElementNS(ns, 'text');
-    label.setAttribute('class', 'tile-label');
-    label.setAttribute('x', x + TILE_SIZE / 2);
-    label.setAttribute('y', y + TILE_SIZE / 2 + 4);
-    label.setAttribute('fill', '#fff');
-    label.setAttribute('font-size', '10');
-    label.setAttribute('text-anchor', 'middle');
-    label.textContent = cell.exitDir ? '↑' : 'E';
-    g.appendChild(label);
-  }
+    const volcano = document.createElementNS(ns, 'text');
+    volcano.setAttribute('x', x + TILE_SIZE / 2);
+    volcano.setAttribute('y', y + TILE_SIZE / 2 + 6);
+    volcano.setAttribute('fill', '#e8552a');
+    volcano.setAttribute('font-size', '20');
+    volcano.setAttribute('text-anchor', 'middle');
+    volcano.setAttribute('pointer-events', 'none');
+    volcano.textContent = '🌋';
+    g.appendChild(volcano);
+  } else if (hasImage) {
+    if (cell.type === 'entry' && cell.exitDir) {
+      const img = document.createElementNS(ns, 'image');
+      img.setAttribute('href', `assets/images/tiles/${imgFile}.png`);
+      img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/tiles/${imgFile}.png`);
+      img.setAttribute('x', x);
+      img.setAttribute('y', y);
+      img.setAttribute('width', TILE_SIZE);
+      img.setAttribute('height', TILE_SIZE * 2);
+      img.setAttribute('preserveAspectRatio', 'none');
+      g.appendChild(img);
+    } else if (cell.type === 'entry' && !cell.exitDir) {
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('class', 'tile-rect');
+      rect.setAttribute('x', x);
+      rect.setAttribute('y', y);
+      rect.setAttribute('width', TILE_SIZE);
+      rect.setAttribute('height', TILE_SIZE);
+      rect.setAttribute('fill', color);
+      rect.setAttribute('fill-opacity', '0.7');
+      rect.setAttribute('rx', 3);
+      g.appendChild(rect);
+    } else {
+      const img = document.createElementNS(ns, 'image');
+      img.setAttribute('href', `assets/images/tiles/${imgFile}.png`);
+      img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/tiles/${imgFile}.png`);
+      img.setAttribute('x', x);
+      img.setAttribute('y', y);
+      img.setAttribute('width', TILE_SIZE);
+      img.setAttribute('height', TILE_SIZE);
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('transform', `rotate(${cell.rotation || 0} ${x + TILE_SIZE / 2} ${y + TILE_SIZE / 2})`);
+      g.appendChild(img);
+    }
+  } else {
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('class', 'tile-rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', TILE_SIZE);
+    rect.setAttribute('height', TILE_SIZE);
+    rect.setAttribute('fill', color);
+    rect.setAttribute('fill-opacity', '0.7');
+    rect.setAttribute('rx', 3);
+    rect.setAttribute('stroke', 'rgba(0,0,0,.4)');
+    rect.setAttribute('stroke-width', 1);
+    g.appendChild(rect);
 
-  if (!cell.flipped) {
     for (const dir of DIRS) {
       if (!cell.walls[dir]) {
         drawWall(g, ns, x, y, dir);
       }
     }
+
+    if (cell.isEntry) {
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('class', 'tile-label');
+      label.setAttribute('x', x + TILE_SIZE / 2);
+      label.setAttribute('y', y + TILE_SIZE / 2 + 4);
+      label.setAttribute('fill', '#fff');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('text-anchor', 'middle');
+      label.textContent = cell.exitDir ? '↑' : 'E';
+      g.appendChild(label);
+    }
+
+    if (cell.isSanctuary) {
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('class', 'tile-label');
+      label.setAttribute('x', x + TILE_SIZE / 2);
+      label.setAttribute('y', y + TILE_SIZE / 2 + 5);
+      label.setAttribute('fill', '#fff');
+      label.setAttribute('font-size', '20');
+      label.setAttribute('text-anchor', 'middle');
+      g.appendChild(label);
+      label.textContent = '⛩';
+    }
+
+    if (TYPE_ICONS[cell.type] && !cell.isSanctuary && !cell.isEntry) {
+      const icon = document.createElementNS(ns, 'text');
+      icon.setAttribute('class', 'tile-icon');
+      icon.setAttribute('x', x + TILE_SIZE / 2);
+      icon.setAttribute('y', y + TILE_SIZE / 2 + 6);
+      icon.setAttribute('fill', 'rgba(255,255,255,.6)');
+      icon.setAttribute('font-size', '18');
+      icon.setAttribute('text-anchor', 'middle');
+      icon.setAttribute('pointer-events', 'none');
+      icon.textContent = TYPE_ICONS[cell.type];
+      g.appendChild(icon);
+    }
   }
 
-  if (cell.isSanctuary) {
-    const label = document.createElementNS(ns, 'text');
-    label.setAttribute('class', 'tile-label');
-    label.setAttribute('x', x + TILE_SIZE / 2);
-    label.setAttribute('y', y + TILE_SIZE / 2 + 5);
-    label.setAttribute('fill', '#fff');
-    label.setAttribute('font-size', '20');
-    label.setAttribute('text-anchor', 'middle');
-    label.textContent = '⛩';
-    g.appendChild(label);
+  if (!cell.flipped && cell.demolished) {
+    for (const dir of Object.keys(cell.demolished)) {
+      if (cell.demolished[dir]) {
+        drawDemolishedPassage(g, ns, x, y, dir);
+      }
+    }
   }
 
-  if (!cell.flipped && TYPE_ICONS[cell.type] && !cell.isSanctuary && !cell.isEntry) {
-    const icon = document.createElementNS(ns, 'text');
-    icon.setAttribute('class', 'tile-icon');
-    icon.setAttribute('x', x + TILE_SIZE / 2);
-    icon.setAttribute('y', y + TILE_SIZE / 2 + 6);
-    icon.setAttribute('fill', 'rgba(255,255,255,.6)');
-    icon.setAttribute('font-size', '18');
-    icon.setAttribute('text-anchor', 'middle');
-    icon.setAttribute('pointer-events', 'none');
-    icon.textContent = TYPE_ICONS[cell.type];
-    g.appendChild(icon);
-  }
-
-  if (cell.ruinsNum != null && !cell.flipped) {
+  if (!cell.flipped && cell.ruinsNum != null) {
     const num = document.createElementNS(ns, 'text');
     num.setAttribute('x', x + TILE_SIZE - 10);
     num.setAttribute('y', y + 14);
-    num.setAttribute('fill', 'rgba(255,255,255,.5)');
+    num.setAttribute('fill', '#fff');
     num.setAttribute('font-size', '10');
+    num.setAttribute('font-weight', 'bold');
     num.setAttribute('text-anchor', 'middle');
     num.setAttribute('pointer-events', 'none');
+    num.setAttribute('style', 'paint-order:stroke;stroke:#000;stroke-width:2px');
     num.textContent = cell.ruinsNum;
     g.appendChild(num);
   }
@@ -260,13 +362,6 @@ function renderCell(tilesLayer, markersLayer, guardiansLayer, cell, state, ns) {
     c.setAttribute('pointer-events', 'none');
     markersLayer.appendChild(c);
   }
-  if (cell.demolished && !cell.flipped) {
-    for (const dir of Object.keys(cell.demolished)) {
-      if (cell.demolished[dir]) {
-        drawWall(g, ns, x, y, dir, true);
-      }
-    }
-  }
 
   if (cell.guardians && cell.guardians.length > 0 && !cell.flipped) {
     for (let i = 0; i < cell.guardians.length; i++) {
@@ -282,14 +377,13 @@ function renderCell(tilesLayer, markersLayer, guardiansLayer, cell, state, ns) {
   }
 }
 
-function drawWall(g, ns, x, y, dir, demolished = false) {
+function drawWall(g, ns, x, y, dir) {
   const line = document.createElementNS(ns, 'line');
-  line.setAttribute('class', 'wall' + (demolished ? ' demolished' : ''));
-  line.setAttribute('stroke', demolished ? '#e8552a' : '#1a0e08');
+  line.setAttribute('class', 'wall');
+  line.setAttribute('stroke', '#1a0e08');
   line.setAttribute('stroke-width', WALL_THICKNESS);
   line.setAttribute('stroke-linecap', 'round');
-  line.setAttribute('opacity', demolished ? '0.6' : '0.9');
-  if (demolished) line.setAttribute('stroke-dasharray', '4 3');
+  line.setAttribute('opacity', '0.9');
 
   const half = TILE_SIZE;
   switch (dir) {
@@ -297,6 +391,39 @@ function drawWall(g, ns, x, y, dir, demolished = false) {
     case 'S': line.setAttribute('x1', x); line.setAttribute('y1', y + half); line.setAttribute('x2', x + half); line.setAttribute('y2', y + half); break;
     case 'E': line.setAttribute('x1', x + half); line.setAttribute('y1', y); line.setAttribute('x2', x + half); line.setAttribute('y2', y + half); break;
     case 'W': line.setAttribute('x1', x); line.setAttribute('y1', y); line.setAttribute('x2', x); line.setAttribute('y2', y + half); break;
+  }
+  g.appendChild(line);
+}
+
+function drawDemolishedPassage(g, ns, x, y, dir) {
+  const half = TILE_SIZE;
+  const cx = x + half / 2;
+  const cy = y + half / 2;
+  let mx, my, isVertical;
+  switch (dir) {
+    case 'N': mx = cx; my = y; isVertical = false; break;
+    case 'S': mx = cx; my = y + half; isVertical = false; break;
+    case 'E': mx = x + half; my = cy; isVertical = true; break;
+    case 'W': mx = x; my = cy; isVertical = true; break;
+  }
+
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('class', 'wall demolished');
+  line.setAttribute('stroke', '#e8552a');
+  line.setAttribute('stroke-width', 3);
+  line.setAttribute('stroke-dasharray', '4 3');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('opacity', '0.7');
+  if (isVertical) {
+    line.setAttribute('x1', mx);
+    line.setAttribute('y1', my - 14);
+    line.setAttribute('x2', mx);
+    line.setAttribute('y2', my + 14);
+  } else {
+    line.setAttribute('x1', mx - 14);
+    line.setAttribute('y1', my);
+    line.setAttribute('x2', mx + 14);
+    line.setAttribute('y2', my);
   }
   g.appendChild(line);
 }
@@ -333,6 +460,7 @@ function renderExplorer(layer, explorer, state, ns) {
 
   const def = getExplorerDef(explorer.id);
   const color = def ? def.color : '#999';
+  const radius = 14;
 
   if (isActive) {
     const glow = document.createElementNS(ns, 'circle');
@@ -350,25 +478,46 @@ function renderExplorer(layer, explorer, state, ns) {
   const body = document.createElementNS(ns, 'g');
   body.setAttribute('class', 'meeple-body');
 
-  const circle = document.createElementNS(ns, 'circle');
-  circle.setAttribute('cx', x);
-  circle.setAttribute('cy', y);
-  circle.setAttribute('r', 14);
-  circle.setAttribute('fill', color);
-  circle.setAttribute('stroke', '#000');
-  circle.setAttribute('stroke-width', 2);
-  body.appendChild(circle);
+  const explorerIdx = state.explorers.indexOf(explorer);
+  const clipId = `clip-${explorer.id}-${explorerIdx}`;
+  const defs = transformGroup.querySelector('#board-defs');
+  if (defs) {
+    const clipPath = document.createElementNS(ns, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipCircle = document.createElementNS(ns, 'circle');
+    clipCircle.setAttribute('cx', x);
+    clipCircle.setAttribute('cy', y);
+    clipCircle.setAttribute('r', radius);
+    clipPath.appendChild(clipCircle);
+    defs.appendChild(clipPath);
+  }
 
-  const initial = document.createElementNS(ns, 'text');
-  initial.setAttribute('x', x);
-  initial.setAttribute('y', y + 5);
-  initial.setAttribute('fill', '#fff');
-  initial.setAttribute('font-size', '13');
-  initial.setAttribute('font-weight', '700');
-  initial.setAttribute('text-anchor', 'middle');
-  initial.setAttribute('pointer-events', 'none');
-  initial.textContent = def ? def.glyph : '?';
-  body.appendChild(initial);
+  const bgCircle = document.createElementNS(ns, 'circle');
+  bgCircle.setAttribute('cx', x);
+  bgCircle.setAttribute('cy', y);
+  bgCircle.setAttribute('r', radius);
+  bgCircle.setAttribute('fill', color);
+  body.appendChild(bgCircle);
+
+  const img = document.createElementNS(ns, 'image');
+  img.setAttribute('href', `assets/images/explorers/${explorer.id}.svg`);
+  img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/explorers/${explorer.id}.svg`);
+  img.setAttribute('x', x - radius);
+  img.setAttribute('y', y - radius);
+  img.setAttribute('width', radius * 2);
+  img.setAttribute('height', radius * 2);
+  img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+  img.setAttribute('clip-path', `url(#${clipId})`);
+  body.appendChild(img);
+
+  const ring = document.createElementNS(ns, 'circle');
+  ring.setAttribute('cx', x);
+  ring.setAttribute('cy', y);
+  ring.setAttribute('r', radius);
+  ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', color);
+  ring.setAttribute('stroke-width', 2.5);
+  body.appendChild(ring);
 
   if (explorer.state === 'down') {
     body.setAttribute('transform', `rotate(75 ${x} ${y})`);

@@ -25,6 +25,7 @@
   }
   #hud-panel h3 { color: var(--c-ember); font-size: 13px; margin: 0 0 8px; letter-spacing: 1px; }
   .hud-active { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--c-border); }
+  .hud-active-avatar { width: 48px; height: 48px; border-radius: 50%; border: 3px solid; object-fit: cover; margin-bottom: 8px; }
   .hud-active-name { font-size: 16px; font-weight: 700; }
   .hud-active-role { font-size: 11px; color: var(--c-ember); }
   .hud-hp { display: flex; gap: 3px; margin: 4px 0; }
@@ -40,6 +41,7 @@
   }
   .hud-team-member.current { border-color: var(--c-ember); box-shadow: 0 0 8px rgba(245,166,35,.3); }
   .hud-team-member .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .hud-team-avatar { width: 24px; height: 24px; border-radius: 50%; border: 2px solid; object-fit: cover; flex-shrink: 0; }
   .hud-team-member .tm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hud-team-member .tm-hp { font-size: 11px; color: var(--c-blood); }
   .hud-volcano {
@@ -65,6 +67,7 @@
   #action-bar .act-btn:hover:not(:disabled) { border-color: var(--c-ember); background: var(--c-panel); }
   #action-bar .act-btn:disabled { opacity: .3; cursor: not-allowed; }
   #action-bar .act-btn.ability { border-color: var(--c-gold); }
+  #action-bar .act-btn .act-icon { width: 20px; height: 20px; vertical-align: middle; margin-right: 4px; }
   #action-bar .act-btn.end-turn { background: linear-gradient(180deg, var(--c-lava), var(--c-lava-dim)); border-color: var(--c-gold); color: #fff; font-weight: 700; }
   #action-bar .act-btn.peril { background: var(--c-lava-dim); color: #fff; font-weight: 700; border-color: var(--c-gold); animation: pulse 1s infinite; }
   #log-panel {
@@ -118,6 +121,7 @@
 
 <!-- ===================== TITLE SCREEN ===================== -->
 <div id="screen-title" class="screen active">
+  <div class="title-art"><img src="assets/images/cover.jpg" alt=""></div>
   <div class="title-overlay">
     <h1 class="game-title">SUB TERRA II</h1>
     <p class="game-subtitle">Au bord de l'enfer</p>

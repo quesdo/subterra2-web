@@ -30,7 +30,7 @@ export function refreshHUD(state) {
     const stateLabel = e.state === 'down' ? ' ↓' : e.state === 'dead' ? ' ✕' : e.state === 'escaped' ? ' ↑' : '';
     return `
       <div class="hud-team-member ${isCurrent ? 'current' : ''}">
-        <span class="dot" style="background:${d?.color || '#999'}"></span>
+        <img class="hud-team-avatar" src="assets/images/explorers/${e.id}.svg" alt="" style="border-color:${d?.color || '#999'}">
         <span class="tm-name">${d?.name || e.id}${stateLabel}</span>
         <span class="tm-hp">${e.hp}/${e.maxHp}</span>
       </div>
@@ -44,6 +44,7 @@ export function refreshHUD(state) {
 
   panel.innerHTML = `
     <div class="hud-active">
+      <img class="hud-active-avatar" src="assets/images/explorers/${active.id}.svg" alt="" style="border-color:${def?.color || '#999'}">
       <div class="hud-active-name" style="color:${def?.color || '#fff'}">${def?.name || active.id}${shieldTag}${itemTag}</div>
       <div class="hud-active-role">${def?.role || ''}</div>
       <div class="hud-hp">${hpPips}</div>

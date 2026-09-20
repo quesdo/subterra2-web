@@ -24,6 +24,7 @@ function defaultCell(x, y, overrides = {}) {
     guardianAnchor: false,
     exitDir: null,
     occupied: false,
+    rotation: 0,
     ...overrides,
   };
 }
@@ -272,6 +273,7 @@ export function placeTile(board, x, y, tileDef, rotation) {
     type: tileDef.type,
     walls: rotatedWalls,
     ruinsNum: tileDef.ruinsNum ?? null,
+    rotation: rotation || 0,
   });
   placeCell(board, cell);
   return cell;
