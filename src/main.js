@@ -5,19 +5,23 @@ import {
   manageObject, push, crawl, getMoveTargets, getRevealTargets,
   getDigTargets, canDoAction, spendAP, onTilePlaced,
   triggerSpikes, triggerDarts,
+  drawTileForReveal, confirmTilePlacement,
+  drawTileForExplore, confirmExplorePlacement,
 } from './engine/actions.js';
 import {
   canUseAbility, useIlluminate, useSprint, useOrder, useResearch,
   useExcavate, useConsolidate, useScope, useSnipe, useGrenade,
   useDemolish, useAnnihilate, usePrepare, useHeal, useRevive,
   usePurify, useAdventurer, hasScholar, hasAgile,
+  drawTileForScope, confirmScopePlacement,
+  drawTileForResearch, confirmResearchPlacement,
 } from './engine/abilities.js';
 import { startExplorerTurn, endExplorerTurn, endGameTurn, getTurnOrder } from './engine/turn.js';
 import { checkEndConditions, getMedal } from './engine/endgame.js';
 import { rollPeril, rollDie, PERIL_FACES } from './engine/perils.js';
 import { resolvePeril } from './engine/peril-resolution.js';
 import { tryPlaceSanctuary, retrieveArtifact, isSanctuaryUnlocked } from './engine/artefact.js';
-import { DIRS, DIR_DELTA, OPP, areConnected, getAdjacentConnectedCells, lineOfSight } from './engine/board.js';
+import { DIRS, DIR_DELTA, OPP, areConnected, getAdjacentConnectedCells, lineOfSight, rotateWalls } from './engine/board.js';
 import { EXPLORERS, ABILITIES } from './engine/explorers.js';
 import { TEMPLE_TILES } from './engine/tiles.js';
 import { initBoard, renderBoard, fitView, clearHighlights,
@@ -231,13 +235,38 @@ function startReveal() {
   if (dirs.length === 0) { toast('Aucune issue à révéler.', 'bad'); return; }
   ui.pendingAction = 'reveal';
   highlightRevealEdges(state, cell, dirs, (dir) => {
-    const result = reveal(state, dir);
-    if (result.ok) {
-      checkBagEmpty();
+    const draw = drawTileForReveal(state, dir);
+    if (!draw.ok) {
+      toast(draw.reason === 'empty_bag' ? 'Sac de tuiles vide.' : 'Placement impossible.', 'bad');
       afterAction();
+      return;
+    }
+    if (draw.tiles.length > 1) {
+      showTileChoiceModal(draw, (chosenTile) => {
+        showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+          const result = confirmTilePlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+          returnTileToBag(state, draw, chosenTile);
+          if (result.ok) {
+            checkBagEmpty();
+            afterAction();
+          } else {
+            toast('Placement impossible.', 'bad');
+            afterAction();
+          }
+        });
+      });
     } else {
-      toast(result.reason === 'empty_bag' ? 'Sac de tuiles vide.' : 'Placement impossible.', 'bad');
-      afterAction();
+      const chosenTile = draw.tiles[0];
+      showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+        const result = confirmTilePlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+        if (result.ok) {
+          checkBagEmpty();
+          afterAction();
+        } else {
+          toast('Placement impossible.', 'bad');
+          afterAction();
+        }
+      });
     }
   });
   toast('Cliquez une issue dorée pour révéler.');
@@ -265,13 +294,38 @@ function startExplore() {
   if (dirs.length === 0) { toast('Aucune issue à explorer.', 'bad'); return; }
   ui.pendingAction = 'explore';
   highlightRevealEdges(state, cell, dirs, (dir) => {
-    const result = explore(state, dir);
-    if (result.ok) {
-      checkBagEmpty();
+    const draw = drawTileForExplore(state, dir);
+    if (!draw.ok) {
+      toast(draw.reason === 'empty_bag' ? 'Sac de tuiles vide.' : 'Exploration impossible.', 'bad');
       afterAction();
+      return;
+    }
+    if (draw.tiles.length > 1) {
+      showTileChoiceModal(draw, (chosenTile) => {
+        showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+          const result = confirmExplorePlacement(state, tile.tileDef, rotation, tile.x, tile.y, draw.dir);
+          returnTileToBag(state, draw, chosenTile);
+          if (result.ok) {
+            checkBagEmpty();
+            afterAction();
+          } else {
+            toast('Exploration impossible.', 'bad');
+            afterAction();
+          }
+        });
+      });
     } else {
-      toast(result.reason === 'empty_bag' ? 'Sac de tuiles vide.' : 'Exploration impossible.', 'bad');
-      afterAction();
+      const chosenTile = draw.tiles[0];
+      showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+        const result = confirmExplorePlacement(state, tile.tileDef, rotation, tile.x, tile.y, draw.dir);
+        if (result.ok) {
+          checkBagEmpty();
+          afterAction();
+        } else {
+          toast('Exploration impossible.', 'bad');
+          afterAction();
+        }
+      });
     }
   });
   toast('Explorer : révéler + entrer immédiatement.');
@@ -529,14 +583,46 @@ function doIlluminateReveal() {
   }
   toast(`Illuminer : révélation ${3 - ui.illuminateRevealsLeft}/2 (gratuite).`);
   highlightRevealEdges(state, cell, dirs, (dir) => {
-    const result = reveal(state, dir);
-    if (result.ok) checkBagEmpty();
-    ui.illuminateRevealsLeft--;
-    fullRender();
-    if (ui.illuminateRevealsLeft > 0 && getRevealTargets(state).length > 0) {
-      doIlluminateReveal();
+    const draw = drawTileForReveal(state, dir);
+    if (!draw.ok) {
+      ui.illuminateRevealsLeft--;
+      fullRender();
+      if (ui.illuminateRevealsLeft > 0 && getRevealTargets(state).length > 0) {
+        doIlluminateReveal();
+      } else {
+        afterAction();
+      }
+      return;
+    }
+    state.ap += 1;
+    if (draw.tiles.length > 1) {
+      showTileChoiceModal(draw, (chosenTile) => {
+        showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+          const result = confirmTilePlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+          returnTileToBag(state, draw, chosenTile);
+          if (result.ok) checkBagEmpty();
+          ui.illuminateRevealsLeft--;
+          fullRender();
+          if (ui.illuminateRevealsLeft > 0 && getRevealTargets(state).length > 0) {
+            doIlluminateReveal();
+          } else {
+            afterAction();
+          }
+        });
+      });
     } else {
-      afterAction();
+      const chosenTile = draw.tiles[0];
+      showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+        const result = confirmTilePlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+        if (result.ok) checkBagEmpty();
+        ui.illuminateRevealsLeft--;
+        fullRender();
+        if (ui.illuminateRevealsLeft > 0 && getRevealTargets(state).length > 0) {
+          doIlluminateReveal();
+        } else {
+          afterAction();
+        }
+      });
     }
   });
 }
@@ -614,11 +700,20 @@ function startResearch() {
     const [dx, dy] = DIR_DELTA[dir];
     const tx = cell.x + dx;
     const ty = cell.y + dy;
-    const result = useResearch(state, tx, ty, dir);
-    if (!result.ok) {
-      toast(result.reason === 'no_journal_tiles' ? 'Plus de tuiles Journal.' : 'Placement impossible.', 'bad');
+    const draw = drawTileForResearch(state, tx, ty);
+    if (!draw.ok) {
+      toast(draw.reason === 'no_journal_tiles' ? 'Plus de tuiles Journal.' : 'Placement impossible.', 'bad');
+      afterAction();
+      return;
     }
-    afterAction();
+    const chosenTile = draw.tiles[0];
+    showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+      const result = confirmResearchPlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+      if (!result.ok) {
+        toast('Placement impossible.', 'bad');
+      }
+      afterAction();
+    });
   });
 }
 
@@ -659,10 +754,19 @@ function startScope() {
   }
   if (targets.length === 0) { toast('Aucune tuile visible.', 'bad'); return; }
   highlightCellTargets(state, targets, (t) => {
-    const result = useScope(state, t.x, t.y);
-    if (!result.ok) { toast('Lunette impossible.', 'bad'); }
-    checkBagEmpty();
-    afterAction();
+    const draw = drawTileForScope(state, t.x, t.y);
+    if (!draw.ok) {
+      toast(draw.reason === 'empty_bag' ? 'Sac de tuiles vide.' : 'Lunette impossible.', 'bad');
+      afterAction();
+      return;
+    }
+    const chosenTile = draw.tiles[0];
+    showRotationPickerModal(draw, chosenTile, (tile, rotation) => {
+      const result = confirmScopePlacement(state, tile.tileDef, rotation, tile.x, tile.y);
+      if (!result.ok) { toast('Lunette impossible.', 'bad'); }
+      checkBagEmpty();
+      afterAction();
+    });
   });
   toast('Lunette : révéler une tuile visible (≤3).');
 }
@@ -856,6 +960,175 @@ function selectTileThenEdge(callback) {
     highlightRevealEdges(state, cell, dirs, (dir) => callback(cell, dir));
   };
   tilesLayer.addEventListener('click', handler);
+}
+
+/* ============================================================
+   TILE CHOICE & ROTATION PICKER MODALS
+   ============================================================ */
+
+const TILE_TYPE_LABELS = {
+  normale: 'Normale',
+  pont: 'Pont',
+  cle: 'Clé',
+  lave: 'Lave',
+  piege_pics: 'Piège à pics',
+  piege_flechettes: 'Piège à fléchettes',
+  ruines: 'Ruines',
+  gardien: 'Gardien',
+  journal: 'Journal',
+};
+
+function buildTilePreviewSVG(tileDef, rotation) {
+  const rotated = rotateWalls(tileDef.walls, rotation);
+  const ns = 'http://www.w3.org/2000/svg';
+  const size = 80;
+  const pad = 8;
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.style.verticalAlign = 'middle';
+
+  const colors = {
+    normale: '#8b7355', pont: '#6b8b9b', cle: '#d4af37', lave: '#e8552a',
+    piege_pics: '#8b4c3c', piege_flechettes: '#7a5c3a', ruines: '#9c8b6b',
+    gardien: '#4a3c2a', journal: '#b8a088',
+  };
+  const color = colors[tileDef.type] || '#8b7355';
+
+  const bg = document.createElementNS(ns, 'rect');
+  bg.setAttribute('x', pad);
+  bg.setAttribute('y', pad);
+  bg.setAttribute('width', size - pad * 2);
+  bg.setAttribute('height', size - pad * 2);
+  bg.setAttribute('rx', 4);
+  bg.setAttribute('fill', color);
+  svg.appendChild(bg);
+
+  const wallThick = 4;
+  const dirs = ['N', 'E', 'S', 'W'];
+  for (const dir of dirs) {
+    if (!rotated[dir]) continue;
+    const wall = document.createElementNS(ns, 'line');
+    wall.setAttribute('stroke', '#1a1410');
+    wall.setAttribute('stroke-width', wallThick);
+    wall.setAttribute('stroke-linecap', 'round');
+    if (dir === 'N') { wall.setAttribute('x1', pad); wall.setAttribute('y1', pad); wall.setAttribute('x2', size - pad); wall.setAttribute('y2', pad); }
+    else if (dir === 'S') { wall.setAttribute('x1', pad); wall.setAttribute('y1', size - pad); wall.setAttribute('x2', size - pad); wall.setAttribute('y2', size - pad); }
+    else if (dir === 'E') { wall.setAttribute('x1', size - pad); wall.setAttribute('y1', pad); wall.setAttribute('x2', size - pad); wall.setAttribute('y2', size - pad); }
+    else { wall.setAttribute('x1', pad); wall.setAttribute('y1', pad); wall.setAttribute('x2', pad); wall.setAttribute('y2', size - pad); }
+    svg.appendChild(wall);
+  }
+  return svg;
+}
+
+function closeModal(modal) {
+  if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+}
+
+function returnTileToBag(state, draw, chosenTile) {
+  if (!draw._drawnTileIds) return;
+  for (const t of draw.tiles) {
+    if (t === chosenTile) continue;
+    if (t._drawnId) state.tileBag.push(t._drawnId);
+  }
+}
+
+function cancelTileDraw(state, draw) {
+  if (!draw._drawnTileIds) return;
+  state.tileBag.push(...draw._drawnTileIds);
+}
+
+function showTileChoiceModal(draw, onChosen) {
+  const modal = document.createElement('div');
+  modal.id = 'tile-choice-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--c-panel);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:600px;';
+  card.innerHTML = '<h3 style="color:var(--c-ember);margin:0 0 16px;letter-spacing:1px;">Choisissez une tuile</h3>';
+
+  const tilesRow = document.createElement('div');
+  tilesRow.style.cssText = 'display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;';
+
+  for (const t of draw.tiles) {
+    const tileBtn = document.createElement('div');
+    tileBtn.style.cssText = 'cursor:pointer;padding:12px;border:2px solid var(--c-border);border-radius:8px;transition:all .15s;text-align:center;';
+    const label = TILE_TYPE_LABELS[t.tileDef.type] || t.tileDef.type;
+    tileBtn.innerHTML = `<div style="margin-bottom:8px;color:var(--c-text);font-weight:700;">${label}</div>`;
+    tileBtn.appendChild(buildTilePreviewSVG(t.tileDef, 0));
+    tileBtn.innerHTML += `<div style="margin-top:6px;font-size:12px;color:var(--c-text-dim);">${t.rotations.length} rotation(s)</div>`;
+
+    tileBtn.addEventListener('mouseenter', () => { tileBtn.style.borderColor = 'var(--c-ember)'; });
+    tileBtn.addEventListener('mouseleave', () => { tileBtn.style.borderColor = 'var(--c-border)'; });
+    tileBtn.addEventListener('click', () => {
+      closeModal(modal);
+      onChosen(t);
+    });
+    tilesRow.appendChild(tileBtn);
+  }
+  card.appendChild(tilesRow);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'act-btn';
+  cancelBtn.textContent = 'Annuler';
+  cancelBtn.addEventListener('click', () => {
+    closeModal(modal);
+    cancelTileDraw(ui.state, draw);
+    afterAction();
+  });
+  card.appendChild(cancelBtn);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
+function showRotationPickerModal(draw, chosenTile, onConfirmed) {
+  const modal = document.createElement('div');
+  modal.id = 'rotation-picker-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--c-panel);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:520px;';
+  const label = TILE_TYPE_LABELS[chosenTile.tileDef.type] || chosenTile.tileDef.type;
+  card.innerHTML = `<h3 style="color:var(--c-ember);margin:0 0 16px;letter-spacing:1px;">Choisissez la rotation</h3><div style="margin-bottom:12px;color:var(--c-text);font-weight:700;">${label}</div>`;
+
+  const rotationsRow = document.createElement('div');
+  rotationsRow.style.cssText = 'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;';
+
+  const validRotations = [0, 90, 180, 270];
+  for (const rot of validRotations) {
+    const isValid = chosenTile.rotations.includes(rot);
+    const btn = document.createElement('div');
+    btn.style.cssText = isValid
+      ? 'cursor:pointer;padding:8px;border:2px solid var(--c-ember);border-radius:8px;text-align:center;transition:all .15s;'
+      : 'padding:8px;border:2px solid var(--c-border);border-radius:8px;text-align:center;opacity:.3;cursor:not-allowed;';
+    btn.innerHTML = `<div style="font-size:12px;color:var(--c-text-dim);margin-bottom:4px;">${rot}°</div>`;
+    btn.appendChild(buildTilePreviewSVG(chosenTile.tileDef, rot));
+
+    if (isValid) {
+      btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(245,166,35,.15)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = ''; });
+      btn.addEventListener('click', () => {
+        closeModal(modal);
+        onConfirmed(chosenTile, rot);
+      });
+    }
+    rotationsRow.appendChild(btn);
+  }
+  card.appendChild(rotationsRow);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'act-btn';
+  cancelBtn.textContent = 'Annuler';
+  cancelBtn.addEventListener('click', () => {
+    closeModal(modal);
+    cancelTileDraw(ui.state, draw);
+    afterAction();
+  });
+  card.appendChild(cancelBtn);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
 }
 
 /* ============================================================

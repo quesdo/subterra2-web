@@ -8,6 +8,8 @@ import {
   canUseAbility, removeShield,
   useConsolidate, useGrenade, useDemolish, useAnnihilate, usePrepare,
   useHeal, useRevive, usePurify, useExcavate, useResearch, useAdventurer,
+  drawTileForScope, confirmScopePlacement,
+  drawTileForResearch, confirmResearchPlacement,
 } from '../../src/engine/abilities.js';
 
 function makeState(explorerIds = ['scout', 'miner', 'nurse']) {
@@ -207,4 +209,51 @@ test('useExcavate removes rubble for 1 AP total (not 3)', () => {
   useExcavate(state, 0, 0);
   assert.equal(cell.rubble, false);
   assert.equal(state.ap, 1); // 2 - 1 = 1, NOT 2 - 1 - 2 = -1
+});
+
+/* ── Two-step scope/research tests ── */
+
+test('drawTileForScope returns not ok when lineOfSight fails', () => {
+  const state = makeState(['sniper', 'miner', 'nurse']);
+  const draw = drawTileForScope(state, 0, 1);
+  assert.equal(draw.ok, false);
+});
+
+test('drawTileForScope returns not ok when tileBag is empty', () => {
+  const state = makeState(['sniper', 'miner', 'nurse']);
+  state.tileBag = [];
+  const draw = drawTileForScope(state, 0, 1);
+  assert.equal(draw.ok, false);
+});
+
+test('drawTileForResearch returns journal tile with rotations without placing or spending AP', () => {
+  const state = makeState(['commander', 'miner', 'nurse']);
+  const apBefore = state.ap;
+  const usesBefore = state.explorers[0].abilityUsesLeft.research;
+  const bagBefore = state.journalBag.length;
+  const draw = drawTileForResearch(state, 0, 1);
+  if (draw.ok) {
+    assert.equal(draw.tiles.length, 1);
+    assert.equal(draw.tiles[0].rotations.length > 0, true);
+    assert.equal(state.ap, apBefore, 'AP should NOT be spent in drawTileForResearch');
+    assert.equal(state.explorers[0].abilityUsesLeft.research, usesBefore, 'uses should NOT decrement in draw');
+    assert.equal(state.journalBag.length, bagBefore - 1);
+  } else {
+    assert.equal(draw.reason, 'no_valid_rotation');
+  }
+});
+
+test('confirmResearchPlacement places tile, spends AP, and decrements uses', () => {
+  const state = makeState(['commander', 'miner', 'nurse']);
+  const apBefore = state.ap;
+  const usesBefore = state.explorers[0].abilityUsesLeft.research;
+  const draw = drawTileForResearch(state, 0, 1);
+  if (draw.ok) {
+    const t = draw.tiles[0];
+    const result = confirmResearchPlacement(state, t.tileDef, t.rotations[0], t.x, t.y);
+    assert.equal(result.ok, true);
+    assert.ok(getCell(state, 0, 1));
+    assert.equal(state.ap, apBefore - 1);
+    assert.equal(state.explorers[0].abilityUsesLeft.research, usesBefore - 1);
+  }
 });

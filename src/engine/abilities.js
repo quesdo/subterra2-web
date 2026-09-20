@@ -88,13 +88,16 @@ export function useOrder(state, targetExplorerId, tx, ty) {
   return { ok: true };
 }
 
-export function useResearch(state, tx, ty, dir) {
+export function drawTileForResearch(state, tx, ty) {
   if (!canUseAbility(state, 'research')) return { ok: false };
   if (state.journalBag.length === 0) return { ok: false, reason: 'no_journal_tiles' };
 
   const tileId = state.journalBag.pop();
   const tileDef = JOURNAL_TILES.find(t => t.id === tileId);
-  if (!tileDef) return { ok: false };
+  if (!tileDef) {
+    state.journalBag.push(tileId);
+    return { ok: false };
+  }
 
   const rotations = getValidRotations(state.board, tx, ty, tileDef.walls);
   if (rotations.length === 0) {
@@ -102,11 +105,22 @@ export function useResearch(state, tx, ty, dir) {
     return { ok: false, reason: 'no_valid_rotation' };
   }
 
-  placeTile(state.board, tx, ty, tileDef, rotations[0]);
+  return { ok: true, tiles: [{ tileDef, rotations, x: tx, y: ty, _drawnId: tileId }] };
+}
+
+export function confirmResearchPlacement(state, tileDef, rotation, x, y) {
+  placeTile(state.board, x, y, tileDef, rotation);
   state.ap -= 1;
   getActiveExplorer(state).abilityUsesLeft.research--;
-  log(state, `Tuile Journal placée en (${tx}, ${ty})`);
+  log(state, `Tuile Journal placée en (${x}, ${y})`);
   return { ok: true };
+}
+
+export function useResearch(state, tx, ty, dir) {
+  const draw = drawTileForResearch(state, tx, ty);
+  if (!draw.ok) return draw;
+  const t = draw.tiles[0];
+  return confirmResearchPlacement(state, t.tileDef, t.rotations[0], t.x, t.y);
 }
 
 export function useExcavate(state, tx, ty) {
@@ -138,26 +152,42 @@ export function useConsolidate(state) {
   return { ok: true };
 }
 
-export function useScope(state, tx, ty) {
+export function drawTileForScope(state, tx, ty) {
   if (!canUseAbility(state, 'scope')) return { ok: false };
   const explorer = getActiveExplorer(state);
   if (!lineOfSight(state.board, explorer.x, explorer.y, tx, ty, 3)) return { ok: false };
   const existing = getCell(state, tx, ty);
   if (existing) return { ok: false };
-  if (state.tileBag.length === 0) return { ok: false };
+  if (state.tileBag.length === 0) return { ok: false, reason: 'empty_bag' };
 
   const tileId = state.tileBag.pop();
   const tileDef = TEMPLE_TILES.find(t => t.id === tileId);
-  if (!tileDef) return { ok: false };
-  const rotations = getValidRotations(state.board, tx, ty, tileDef.walls);
-  if (rotations.length === 0) {
+  if (!tileDef) {
     state.tileBag.push(tileId);
     return { ok: false };
   }
-  placeTile(state.board, tx, ty, tileDef, rotations[0]);
+  const rotations = getValidRotations(state.board, tx, ty, tileDef.walls);
+  if (rotations.length === 0) {
+    state.tileBag.push(tileId);
+    return { ok: false, reason: 'no_valid_rotation' };
+  }
+
+  return { ok: true, tiles: [{ tileDef, rotations, x: tx, y: ty, _drawnId: tileId }] };
+}
+
+export function confirmScopePlacement(state, tileDef, rotation, x, y) {
+  placeTile(state.board, x, y, tileDef, rotation);
   state.ap -= 1;
-  log(state, `${explorer.name} révèle une tuile en (${tx}, ${ty})`);
+  const explorer = getActiveExplorer(state);
+  log(state, `${explorer.name} révèle une tuile en (${x}, ${y})`);
   return { ok: true };
+}
+
+export function useScope(state, tx, ty) {
+  const draw = drawTileForScope(state, tx, ty);
+  if (!draw.ok) return draw;
+  const t = draw.tiles[0];
+  return confirmScopePlacement(state, t.tileDef, t.rotations[0], t.x, t.y);
 }
 
 export function useSnipe(state, tx, ty) {

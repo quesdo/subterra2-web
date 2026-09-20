@@ -138,7 +138,7 @@ export function onTilePlaced(state, cell, tileDef) {
   }
 }
 
-export function reveal(state, dir) {
+export function drawTileForReveal(state, dir) {
   const explorer = getActiveExplorer(state);
   if (!explorer) return { ok: false };
   const cell = getCell(state, explorer.x, explorer.y);
@@ -150,37 +150,46 @@ export function reveal(state, dir) {
   const nb = getCell(state, nx, ny);
   if (nb) return { ok: false };
 
-  let drawnTiles = [];
-  if (hasScholar(state) && state.tileBag.length >= 2) {
-    drawnTiles = [state.tileBag.pop(), state.tileBag.pop()];
+  const isScholar = hasScholar(state) && state.tileBag.length >= 2;
+  let drawnTileIds = [];
+  if (isScholar) {
+    drawnTileIds = [state.tileBag.pop(), state.tileBag.pop()];
   } else if (state.tileBag.length > 0) {
-    drawnTiles = [state.tileBag.pop()];
+    drawnTileIds = [state.tileBag.pop()];
   } else {
     return { ok: false, reason: 'empty_bag' };
   }
 
-  for (let i = 0; i < drawnTiles.length; i++) {
-    const tileId = drawnTiles[i];
+  const tiles = [];
+  for (const tileId of drawnTileIds) {
     const tileDef = TEMPLE_TILES.find(t => t.id === tileId);
     if (!tileDef) continue;
     const rotations = getValidRotations(state.board, nx, ny, tileDef.walls);
     if (rotations.length > 0) {
-      const placed = placeTile(state.board, nx, ny, tileDef, rotations[0]);
-      spendAP(state, 1);
-      onTilePlaced(state, placed, tileDef);
-      if (drawnTiles.length === 2) {
-        state.tileBag.push(drawnTiles[1 - i]);
-      }
-      return { ok: true, cell: placed };
-    }
-    if (i === drawnTiles.length - 1 && drawnTiles.length === 1) {
-      state.tileBag.unshift(tileId);
+      tiles.push({ tileDef, rotations, x: nx, y: ny, _drawnId: tileId });
     }
   }
-  if (drawnTiles.length === 2) {
-    state.tileBag.push(...drawnTiles);
+
+  if (tiles.length === 0) {
+    state.tileBag.push(...drawnTileIds);
+    return { ok: false, reason: 'no_valid_rotation' };
   }
-  return { ok: false, reason: 'no_valid_rotation' };
+
+  return { ok: true, tiles, dir, isScholar, _drawnTileIds: drawnTileIds };
+}
+
+export function confirmTilePlacement(state, tileDef, rotation, x, y) {
+  const placed = placeTile(state.board, x, y, tileDef, rotation);
+  spendAP(state, 1);
+  onTilePlaced(state, placed, tileDef);
+  return { ok: true, cell: placed };
+}
+
+export function reveal(state, dir) {
+  const draw = drawTileForReveal(state, dir);
+  if (!draw.ok) return draw;
+  const t = draw.tiles[0];
+  return confirmTilePlacement(state, t.tileDef, t.rotations[0], t.x, t.y);
 }
 
 export function move(state, tx, ty) {
@@ -284,8 +293,12 @@ export function triggerDarts(state, cell) {
   log(state, `Piège à fléchettes déclenché en (${cell.x}, ${cell.y}) et tuiles adjacentes`);
 }
 
-export function explore(state, dir) {
-  const result = reveal(state, dir);
+export function drawTileForExplore(state, dir) {
+  return drawTileForReveal(state, dir);
+}
+
+export function confirmExplorePlacement(state, tileDef, rotation, x, y, dir) {
+  const result = confirmTilePlacement(state, tileDef, rotation, x, y);
   if (!result.ok) return result;
   const explorer = getActiveExplorer(state);
   const [dx, dy] = DIR_DELTA[dir];
@@ -293,13 +306,13 @@ export function explore(state, dir) {
   const ny = explorer.y + dy;
   const targetCell = getCell(state, nx, ny);
   if (!targetCell || targetCell.rubble || targetCell.flipped) {
-    return { ok: true, entered: false };
+    return { ok: true, cell: result.cell, entered: false };
   }
   if (targetCell.type === 'pont') {
     const occupied = state.explorers.some(e =>
       e.x === nx && e.y === ny && e.state !== 'dead' && e.state !== 'escaped' && e.id !== explorer.id
     );
-    if (occupied) return { ok: true, entered: false };
+    if (occupied) return { ok: true, cell: result.cell, entered: false };
   }
   explorer.x = nx;
   explorer.y = ny;
@@ -309,7 +322,14 @@ export function explore(state, dir) {
       if (roll < 4) triggerSpikes(state, targetCell);
     }
   }
-  return { ok: true, entered: true };
+  return { ok: true, cell: result.cell, entered: true };
+}
+
+export function explore(state, dir) {
+  const draw = drawTileForExplore(state, dir);
+  if (!draw.ok) return draw;
+  const t = draw.tiles[0];
+  return confirmExplorePlacement(state, t.tileDef, t.rotations[0], t.x, t.y, dir);
 }
 
 export function performHeal(state, targetExplorerId) {

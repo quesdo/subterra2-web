@@ -2,7 +2,10 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { createGameState, getCell } from '../../src/engine/state.js';
 import { createBoard, placeCell, areConnected } from '../../src/engine/board.js';
-import { spendAP, canDoAction, push, performHeal, attack, performAttackWithRoll, dig, manageObject, crawl } from '../../src/engine/actions.js';
+import { spendAP, canDoAction, push, performHeal, attack, performAttackWithRoll, dig, manageObject, crawl,
+         drawTileForReveal, confirmTilePlacement, drawTileForExplore, confirmExplorePlacement,
+         reveal, explore } from '../../src/engine/actions.js';
+import { TEMPLE_TILES } from '../../src/engine/tiles.js';
 
 function makeState() {
   const state = createGameState({ explorerIds: ['scout', 'miner', 'nurse'], difficulty: 'normal' });
@@ -180,4 +183,71 @@ test('downed explorer can only crawl', () => {
   assert.equal(canDoAction(state, 'crawl'), true);
   assert.equal(canDoAction(state, 'reveal'), false);
   assert.equal(canDoAction(state, 'attack'), false);
+});
+
+/* ── Two-step tile placement tests ── */
+
+function makeRevealState() {
+  const state = createGameState({ explorerIds: ['scout', 'miner', 'nurse'], difficulty: 'normal' });
+  state.ap = 2;
+  return state;
+}
+
+test('drawTileForReveal returns tiles with valid rotations without placing or spending AP', () => {
+  const state = makeRevealState();
+  const apBefore = state.ap;
+  const bagBefore = state.tileBag.length;
+  const draw = drawTileForReveal(state, 'S');
+  assert.equal(draw.ok, true);
+  assert.equal(draw.tiles.length, 1);
+  assert.equal(draw.tiles[0].rotations.length > 0, true);
+  assert.equal(draw.tiles[0].tileDef.id !== undefined, true);
+  assert.equal(draw.tiles[0].x, 0);
+  assert.equal(draw.tiles[0].y, 1);
+  assert.equal(state.ap, apBefore, 'AP should NOT be spent in drawTileForReveal');
+  assert.equal(state.tileBag.length, bagBefore - 1, 'tile should be removed from bag');
+  const placed = getCell(state, 0, 1);
+  assert.equal(placed, null, 'tile should NOT be placed by drawTileForReveal');
+});
+
+test('confirmTilePlacement places tile and spends 1 AP', () => {
+  const state = makeRevealState();
+  const apBefore = state.ap;
+  const draw = drawTileForReveal(state, 'S');
+  assert.equal(draw.ok, true);
+  const t = draw.tiles[0];
+  const result = confirmTilePlacement(state, t.tileDef, t.rotations[0], t.x, t.y);
+  assert.equal(result.ok, true);
+  assert.equal(result.cell, getCell(state, 0, 1));
+  assert.equal(state.ap, apBefore - 1, 'AP should be spent in confirmTilePlacement');
+});
+
+test('drawTileForReveal returns empty_bag when tileBag is empty', () => {
+  const state = makeRevealState();
+  state.tileBag = [];
+  const draw = drawTileForReveal(state, 'S');
+  assert.equal(draw.ok, false);
+  assert.equal(draw.reason, 'empty_bag');
+});
+
+test('drawTileForReveal with scholar draws 2 tiles when bag has 2+', () => {
+  const state = createGameState({ explorerIds: ['aristocrat', 'miner', 'nurse'], difficulty: 'normal' });
+  state.ap = 2;
+  while (state.tileBag.length > 2) state.tileBag.pop();
+  const draw = drawTileForReveal(state, 'S');
+  assert.equal(draw.ok, true);
+  assert.equal(draw.isScholar, true);
+  assert.equal(draw._drawnTileIds.length, 2);
+});
+
+test('explore wrapper still works (backward compat) — places and moves explorer', () => {
+  const state = makeRevealState();
+  const bagBefore = state.tileBag.length;
+  const apBefore = state.ap;
+  const result = explore(state, 'S');
+  assert.equal(result.ok, true);
+  assert.equal(state.ap, apBefore - 1);
+  assert.equal(state.tileBag.length, bagBefore - 1);
+  const explorer = state.explorers[0];
+  assert.ok(result.entered === true || result.entered === false);
 });
