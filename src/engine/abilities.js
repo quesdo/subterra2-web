@@ -90,7 +90,7 @@ export function useOrder(state, targetExplorerId, tx, ty) {
   target.y = ty;
 
   const targetCell = getCell(state, tx, ty);
-  if (targetCell && targetCell.type === 'spikes' && !targetCell.consolidated) {
+  if (targetCell && targetCell.type === 'piege_pics' && !targetCell.consolidated) {
     if (!hasVigilanceOnTile(state, tx, ty)) {
       const roll = rollDie();
       if (roll < 4) {
@@ -257,7 +257,7 @@ export function usePrepare(state) {
   const explorer = getActiveExplorer(state);
   explorer.shielded = true;
   if (!explorer.abilityCooldown) explorer.abilityCooldown = {};
-  explorer.abilityCooldown.prepare = 1;
+  explorer.abilityCooldown.prepare = 2;
   state.ap -= 1;
   log(state, `${explorer.name} se prépare (Bouclier)`);
   return { ok: true };

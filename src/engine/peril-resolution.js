@@ -49,9 +49,7 @@ export function resolvePeril(state, perilFace) {
         for (const e of state.explorers) {
           if (e.state === 'dead' || e.state === 'escaped') continue;
           if (e.x === cell.x && e.y === cell.y) {
-            if (!explorer.shielded) {
-              damage(state, e, 5, 'collapse');
-            }
+            damage(state, e, 5, 'collapse');
           }
         }
         removeAllGuardians(state.guardians, cell);
@@ -64,20 +62,20 @@ export function resolvePeril(state, perilFace) {
     case 'trap': {
       const cell = getCell(state, explorer.x, explorer.y);
       if (cell) {
-        if (cell.type === 'spikes' && !cell.consolidated) {
+        if (cell.type === 'piege_pics' && !cell.consolidated) {
           if (!hasVigilanceOnTile(state, cell.x, cell.y)) {
             triggerSpikes(state, cell);
             events.push('spikes');
           }
         }
-        if (cell.type === 'darts' && !cell.consolidated) {
+        if (cell.type === 'piege_flechettes' && !cell.consolidated) {
           if (!hasVigilanceOnTile(state, cell.x, cell.y)) {
             triggerDarts(state, cell);
             events.push('darts');
           }
         }
         for (const nb of getAdjacentConnectedCells(state.board, explorer.x, explorer.y)) {
-          if (nb.type === 'darts' && !nb.consolidated) {
+          if (nb.type === 'piege_flechettes' && !nb.consolidated) {
             if (!hasVigilanceOnTile(state, nb.x, nb.y)) {
               triggerDarts(state, nb);
               events.push('darts_adjacent');

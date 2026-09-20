@@ -132,7 +132,7 @@ test('usePrepare sets shield and cooldown', () => {
   const state = makeState(['soldier', 'miner', 'nurse']);
   usePrepare(state);
   assert.equal(state.explorers[0].shielded, true);
-  assert.equal(state.explorers[0].abilityCooldown.prepare, 1);
+  assert.equal(state.explorers[0].abilityCooldown.prepare, 2);
 });
 
 test('usePrepare cannot be used on next turn (cooldown check)', () => {

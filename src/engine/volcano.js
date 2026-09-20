@@ -82,7 +82,7 @@ export function onLavaPeril(state) {
   for (const explorer of state.explorers) {
     if (explorer.state === 'dead' || explorer.state === 'escaped') continue;
     const cell = getCell(state, explorer.x, explorer.y);
-    if (cell && (cell.type === 'lava' || cell.type === 'lave') && !cell.consolidated) {
+    if (cell && cell.type === 'lave' && !cell.consolidated) {
       damage(state, explorer, 1, 'lava');
     }
   }

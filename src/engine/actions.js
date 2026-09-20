@@ -42,7 +42,7 @@ export function getMoveTargets(state) {
     if (nb.flipped) continue;
     if (!areConnected(state.board, explorer.x, explorer.y, nx, ny)) continue;
     if (nb.rubble && !hasAgile(state)) continue;
-    if (nb.type === 'bridge') {
+    if (nb.type === 'pont') {
       const occupied = state.explorers.some(e =>
         e.x === nx && e.y === ny && e.state !== 'dead' && e.state !== 'escaped'
       );
@@ -122,7 +122,7 @@ function getExplorerDef(explorer) {
 
 export function onTilePlaced(state, cell, tileDef) {
   switch (tileDef.type) {
-    case 'key':
+    case 'cle':
       cell.keyMarker = true;
       log(state, `Clé placée sur la tuile (${cell.x}, ${cell.y})`);
       break;
@@ -131,7 +131,7 @@ export function onTilePlaced(state, cell, tileDef) {
       cell.ruinsNum = tileDef.ruinsNum;
       log(state, `Éboulis placé sur les Ruines (${cell.x}, ${cell.y})`);
       break;
-    case 'guardian':
+    case 'gardien':
       spawnGuardian(state.guardians, cell);
       log(state, `Gardien placé sur (${cell.x}, ${cell.y})`);
       break;
@@ -193,7 +193,7 @@ export function move(state, tx, ty) {
   if (targetCell.flipped) return { ok: false };
   if (targetCell.rubble && !hasAgile(state)) return { ok: false };
 
-  if (targetCell.type === 'bridge') {
+  if (targetCell.type === 'pont') {
     const occupied = state.explorers.some(e =>
       e.x === tx && e.y === ty && e.state !== 'dead' && e.state !== 'escaped' && e.id !== explorer.id
     );
@@ -219,7 +219,7 @@ export function move(state, tx, ty) {
     return { ok: true, downed: true };
   }
 
-  if (targetCell.type === 'spikes' && !targetCell.consolidated) {
+  if (targetCell.type === 'piege_pics' && !targetCell.consolidated) {
     if (!hasVigilanceOnTile(state, tx, ty)) {
       const roll = rollDie();
       if (roll < 4) {
@@ -283,7 +283,7 @@ export function explore(state, dir) {
   if (!targetCell || targetCell.rubble || targetCell.flipped) {
     return { ok: true, entered: false };
   }
-  if (targetCell.type === 'bridge') {
+  if (targetCell.type === 'pont') {
     const occupied = state.explorers.some(e =>
       e.x === nx && e.y === ny && e.state !== 'dead' && e.state !== 'escaped' && e.id !== explorer.id
     );
@@ -291,7 +291,7 @@ export function explore(state, dir) {
   }
   explorer.x = nx;
   explorer.y = ny;
-  if (targetCell.type === 'spikes' && !targetCell.consolidated) {
+  if (targetCell.type === 'piege_pics' && !targetCell.consolidated) {
     if (!hasVigilanceOnTile(state, nx, ny)) {
       const roll = rollDie();
       if (roll < 4) triggerSpikes(state, targetCell);
