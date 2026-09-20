@@ -186,12 +186,22 @@ export function reveal(state, dir) {
 export function move(state, tx, ty) {
   const explorer = getActiveExplorer(state);
   if (!explorer) return { ok: false };
+  const result = moveExplorer(state, explorer, tx, ty);
+  if (result.downed) {
+    state.phase = 'perilPhase';
+  }
+  return result;
+}
+
+export function moveExplorer(state, explorer, tx, ty, opts = {}) {
   const sourceCell = getCell(state, explorer.x, explorer.y);
   const targetCell = getCell(state, tx, ty);
   if (!sourceCell || !targetCell) return { ok: false };
   if (!areConnected(state.board, explorer.x, explorer.y, tx, ty)) return { ok: false };
   if (targetCell.flipped) return { ok: false };
-  if (targetCell.rubble && !hasAgile(state)) return { ok: false };
+  const def = getExplorerDef(explorer);
+  const agile = def && def.abilities.includes('agile');
+  if (targetCell.rubble && !agile) return { ok: false };
 
   if (targetCell.type === 'pont') {
     const occupied = state.explorers.some(e =>
@@ -208,13 +218,15 @@ export function move(state, tx, ty) {
     log(state, `${explorer.name} fuit (${fleeingGuardians} Gardien(s), -${fleeingGuardians} PV)`);
   }
 
-  spendAP(state, 1);
+  if (!opts.skipAP) {
+    spendAP(state, 1);
+  }
+
   explorer.x = tx;
   explorer.y = ty;
 
   if (explorer.hp === 0) {
     explorer.state = 'down';
-    state.phase = 'perilPhase';
     log(state, `${explorer.name} s'effondre en fuyant`);
     return { ok: true, downed: true };
   }
@@ -230,7 +242,7 @@ export function move(state, tx, ty) {
 
   if (explorer.hp === 0) {
     explorer.state = 'down';
-    state.phase = 'perilPhase';
+    return { ok: true, downed: true };
   }
 
   return { ok: true };

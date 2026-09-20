@@ -28,6 +28,13 @@ export function startExplorerTurn(state) {
 
   state.ap = 2;
   explorer.pushedThisTurn = false;
+
+  if (explorer.state === 'dead' || explorer.state === 'escaped') {
+    state.phase = 'perilPhase';
+    log(state, `${explorer.name} est ${explorer.state === 'dead' ? 'mort' : 'sorti'} — lance le dé de Péril uniquement`);
+    return;
+  }
+
   state.phase = 'explorerTurn';
 
   if (explorer.state === 'down') {

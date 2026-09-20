@@ -3,6 +3,7 @@ import { areConnected, lineOfSight, getAdjacentConnectedCells, getValidRotations
 import { TEMPLE_TILES, JOURNAL_TILES } from './tiles.js';
 import { rollDie } from './perils.js';
 import { EXPLORERS, ABILITIES } from './explorers.js';
+import { moveExplorer } from './actions.js';
 
 function getDef(explorer) {
   return EXPLORERS.find(e => e.id === explorer.id);
@@ -79,30 +80,8 @@ export function useOrder(state, targetExplorerId, tx, ty) {
   const sourceCell = getCell(state, target.x, target.y);
   if (!sourceCell) return { ok: false };
 
-  const fleeingGuardians = (sourceCell.guardians || []).length;
-  if (fleeingGuardians > 0) {
-    for (let i = 0; i < fleeingGuardians; i++) {
-      damage(state, target, 1, 'fleeing');
-    }
-  }
-
-  target.x = tx;
-  target.y = ty;
-
-  const targetCell = getCell(state, tx, ty);
-  if (targetCell && targetCell.type === 'piege_pics' && !targetCell.consolidated) {
-    if (!hasVigilanceOnTile(state, tx, ty)) {
-      const roll = rollDie();
-      if (roll < 4) {
-        for (const e of state.explorers) {
-          if (e.state === 'dead' || e.state === 'escaped') continue;
-          if (e.x === tx && e.y === ty && !hasVigilanceOnTile(state, tx, ty)) {
-            damage(state, e, 3, 'spikes');
-          }
-        }
-      }
-    }
-  }
+  const result = moveExplorer(state, target, tx, ty, { skipAP: true });
+  if (!result.ok) return result;
 
   state.ap -= 1;
   log(state, `${getActiveExplorer(state).name} ordonne à ${target.name} de se déplacer`);

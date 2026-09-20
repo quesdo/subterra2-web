@@ -63,6 +63,12 @@ export function spreadLava(state) {
 export function flipToVolcano(state, cell) {
   cell.flipped = true;
 
+  if (state.artifactOnGround && state.artifactOnGround.x === cell.x && state.artifactOnGround.y === cell.y) {
+    state.artifactSwallowed = true;
+    state.artifactOnGround = null;
+    log(state, `L'Artefact est englouti par la lave en (${cell.x}, ${cell.y})`);
+  }
+
   for (const explorer of state.explorers) {
     if (explorer.x === cell.x && explorer.y === cell.y && explorer.state !== 'dead' && explorer.state !== 'escaped') {
       explorer.state = 'dead';
