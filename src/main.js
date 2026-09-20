@@ -978,15 +978,22 @@ const TILE_TYPE_LABELS = {
   journal: 'Journal',
 };
 
+const TILE_IMAGE_MAP = {
+  normale: 'normal', pont: 'bridge', cle: 'key', lave: 'lava',
+  piege_pics: 'spikes', piege_flechettes: 'darts', ruines: 'ruins',
+  gardien: 'guardian', journal: null,
+};
+
 function buildTilePreviewSVG(tileDef, rotation) {
   const rotated = rotateWalls(tileDef.walls, rotation);
   const ns = 'http://www.w3.org/2000/svg';
-  const size = 80;
-  const pad = 8;
+  const size = 90;
+  const pad = 4;
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('width', size);
   svg.setAttribute('height', size);
   svg.style.verticalAlign = 'middle';
+  svg.style.borderRadius = '6px';
 
   const colors = {
     normale: '#8b7355', pont: '#6b8b9b', cle: '#d4af37', lave: '#e8552a',
@@ -994,6 +1001,7 @@ function buildTilePreviewSVG(tileDef, rotation) {
     gardien: '#4a3c2a', journal: '#b8a088',
   };
   const color = colors[tileDef.type] || '#8b7355';
+  const imgFile = TILE_IMAGE_MAP[tileDef.type];
 
   const bg = document.createElementNS(ns, 'rect');
   bg.setAttribute('x', pad);
@@ -1004,12 +1012,27 @@ function buildTilePreviewSVG(tileDef, rotation) {
   bg.setAttribute('fill', color);
   svg.appendChild(bg);
 
+  if (imgFile) {
+    const img = document.createElementNS(ns, 'image');
+    img.setAttribute('href', `assets/images/tiles/${imgFile}.png`);
+    img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/tiles/${imgFile}.png`);
+    img.setAttribute('x', pad);
+    img.setAttribute('y', pad);
+    img.setAttribute('width', size - pad * 2);
+    img.setAttribute('height', size - pad * 2);
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    const cx = pad + (size - pad * 2) / 2;
+    const cy = pad + (size - pad * 2) / 2;
+    img.setAttribute('transform', `rotate(${rotation} ${cx} ${cy})`);
+    svg.appendChild(img);
+  }
+
   const wallThick = 4;
   const dirs = ['N', 'E', 'S', 'W'];
   for (const dir of dirs) {
     if (!rotated[dir]) continue;
     const wall = document.createElementNS(ns, 'line');
-    wall.setAttribute('stroke', '#1a1410');
+    wall.setAttribute('stroke', '#f5a623');
     wall.setAttribute('stroke-width', wallThick);
     wall.setAttribute('stroke-linecap', 'round');
     if (dir === 'N') { wall.setAttribute('x1', pad); wall.setAttribute('y1', pad); wall.setAttribute('x2', size - pad); wall.setAttribute('y2', pad); }
