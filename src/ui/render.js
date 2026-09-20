@@ -500,8 +500,8 @@ function renderExplorer(layer, explorer, state, ns) {
   body.appendChild(bgCircle);
 
   const img = document.createElementNS(ns, 'image');
-  img.setAttribute('href', `assets/images/explorers/${explorer.id}.svg`);
-  img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/explorers/${explorer.id}.svg`);
+  img.setAttribute('href', `assets/images/explorers/${explorer.id}.png`);
+  img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `assets/images/explorers/${explorer.id}.png`);
   img.setAttribute('x', x - radius);
   img.setAttribute('y', y - radius);
   img.setAttribute('width', radius * 2);

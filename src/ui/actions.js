@@ -5,13 +5,13 @@ import { canUseAbility } from '../engine/abilities.js';
 import { getMoveTargets, getRevealTargets, getDigTargets } from '../engine/actions.js';
 
 const ACTION_ICONS = {
-  reveal:  '<img src="assets/Personnages/bouton_Découverte.svg" alt="" class="act-icon">',
-  move:    '<img src="assets/Personnages/bouton_Déplacement.svg" alt="" class="act-icon">',
-  explore: '<img src="assets/Personnages/bouton_Découverte.svg" alt="" class="act-icon">',
-  dig:     '<img src="assets/Personnages/bouton_Creuser.svg" alt="" class="act-icon">',
-  attack:  '<img src="assets/Personnages/bouton_Combat.svg" alt="" class="act-icon">',
-  manage:  '<img src="assets/Personnages/bouton_Clé.svg" alt="" class="act-icon">',
-  run:     '<img src="assets/Personnages/bouton_Déplacement.svg" alt="" class="act-icon">',
+  reveal:  '<img src="assets/images/actions/reveal.png" alt="" class="act-icon">',
+  move:    '<img src="assets/images/actions/move.png" alt="" class="act-icon">',
+  explore: '<img src="assets/images/actions/reveal.png" alt="" class="act-icon">',
+  dig:     '<img src="assets/images/actions/dig.png" alt="" class="act-icon">',
+  attack:  '<img src="assets/images/actions/attack.png" alt="" class="act-icon">',
+  manage:  '<img src="assets/images/actions/key.png" alt="" class="act-icon">',
+  run:     '<img src="assets/images/actions/move.png" alt="" class="act-icon">',
 };
 
 const ACTION_DEFS = [
