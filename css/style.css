@@ -1261,6 +1261,31 @@ html, body {
   display: flex; align-items: center; gap: 8px;
 }
 
+.lobby-attribution { margin-top: 16px; }
+.lobby-attribution h4 { margin-bottom: 10px; }
+.lobby-difficulty {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+}
+.lobby-difficulty label { color: var(--c-text-dim); font-size: 14px; }
+.lobby-difficulty select {
+  flex: 1; max-width: 200px;
+}
+.lobby-explorer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.lobby-explorer-card {
+  cursor: pointer; padding: 6px; text-align: center;
+  border: 1px solid var(--c-border); border-radius: var(--radius);
+  background: var(--c-panel); transition: border-color .15s;
+}
+.lobby-explorer-card:hover { border-color: var(--c-ember); }
+.lobby-explorer-card .ex-assigned {
+  font-size: 11px; color: var(--c-text-dim); margin-top: 4px;
+}
+
 /* Boutons de l'écran titre */
 #screen-title .title-overlay { gap: 12px; }
 #btn-local-game, #btn-online-game { min-width: 260px; }

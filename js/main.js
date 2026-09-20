@@ -3,7 +3,7 @@
    ============================================================ */
 
 import { EXPLORERS, ABILITIES } from './data/explorers.js';
-import { PERIL_FACES, rollDie } from './data/perils.js';
+import { PERIL_FACES, rollDie, rollPeril } from './data/perils.js';
 import { TILE_TYPES } from './data/tiles.js';
 import {
   createGame, currentPlayer, explorerCell, endExplorerTurn,
@@ -27,6 +27,9 @@ import { avatarHTML } from './ui/avatar.js';
 import { net } from './net/peer.js';
 import { isOnline, isHost, isPeer, broadcastGameState, applyRemoteState, sendAction, setupGlobalHandlers } from './net/multiplayer.js';
 import { deserializeGame } from './net/serialize.js';
+import { handleClientAction } from './net/host.js';
+import { markAsAuto, isAuto, playAutoTurn } from './net/auto-player.js';
+import { getPlayerId, sendActionToHost, sendEndTurnToHost, isMyTurn as clientIsMyTurn } from './net/client.js';
 
 /* État UI global */
 const ui = {
@@ -58,19 +61,13 @@ initLobby();
 // Le lobby appelle ce callback quand la partie en ligne démarre
 setStartOnlineGameCallback((role, config) => {
   if (role === 'host') {
-    // L'hôte va au setup pour choisir l'équipe
-    ui.selectedExplorers = [];
     ui.onlineMode = 'host';
-    buildSetupScreen();
-    showScreen('screen-setup');
+    startOnlineGameAsHost(config);
   } else if (role === 'peer') {
-    // Les pairs reçoivent la config de l'hôte, puis attendent l'état
     ui.onlineMode = 'peer';
     if (config) {
-      // Config reçue -> démarrer directement
       startOnlineGameAsPeer(config);
     } else {
-      // Attente de la config
       toast('En attente de la configuration par l\'hôte...', '');
     }
   }
@@ -83,10 +80,11 @@ setupGlobalHandlers({
     fullRender();
   },
   handleRemoteAction: (msg, peerId) => {
-    // L'hôte reçoit une demande d'action d'un pair
     handleRemoteAction(msg, peerId);
   },
 });
+window.__handlePlayerDisconnect = handlePlayerDisconnect;
+window.__handlePlayerReconnect = handlePlayerReconnect;
 
 document.getElementById('btn-rules').addEventListener('click', () => {
   buildRulesScreen();
@@ -254,15 +252,39 @@ document.getElementById('btn-start').addEventListener('click', () => {
    ============================================================ */
 function startGame() {
   const explorerDefs = ui.selectedExplorers.map(id => EXPLORERS.find(e => e.id === id));
-  // Le comptage « Explorateurs » pour la piste Volcan = nombre d'unités en jeu
-  // (en solo ou à 2, on contrôle plusieurs Explorateurs).
   const effectiveExplorers = explorerDefs.length;
   ui.game = createGame({
     explorers: explorerDefs,
     difficulty: ui.difficulty,
     numExplorers: effectiveExplorers,
   });
-  // Ajouter un log de bienvenue
+  ui.game.logEntries = [];
+  log('═══ Sub Terra II — Début de l\'expédition ═══', 'system');
+  log(`Équipe : ${explorerDefs.map(e => e.name).join(', ')}.`, 'system');
+  log(`Difficulté : ${ui.difficulty}. Volcan à ${ui.game.volcano.position}.`, 'system');
+  log(`— Tour de ${currentPlayer(ui.game).name} —`, 'system');
+
+  showScreen('screen-game');
+  initLog();
+  setupPanZoom(ui);
+  fullRender();
+}
+
+/* Démarrage côté hôte en ligne : utilise la config du lobby (attribution). */
+function startOnlineGameAsHost(config) {
+  if (!config || !config.assignments) {
+    toast('Erreur : pas d\'attribution reçue.', 'bad');
+    return;
+  }
+  const allExplorerIds = config.assignments.flatMap(a => a.explorerIds);
+  const explorerDefs = allExplorerIds.map(id => EXPLORERS.find(e => e.id === id));
+  ui.difficulty = config.difficulty || 'normal';
+  ui.game = createGame({
+    explorers: explorerDefs,
+    difficulty: ui.difficulty,
+    numExplorers: explorerDefs.length,
+  });
+  ui.game.playerAssignments = config.assignments;
   ui.game.logEntries = [];
   log('═══ Sub Terra II — Début de l\'expédition ═══', 'system');
   log(`Équipe : ${explorerDefs.map(e => e.name).join(', ')}.`, 'system');
@@ -274,17 +296,15 @@ function startGame() {
   setupPanZoom(ui);
   fullRender();
 
-  // Si hôte en ligne : annoncer la config + diffuser l'état initial
-  if (ui.onlineMode === 'host') {
-    import('./net/peer.js').then(({ broadcast }) => {
-      broadcast({ type: 'gameConfig', config: {
-        explorers: ui.selectedExplorers,
-        difficulty: ui.difficulty,
-        numExplorers: effectiveExplorers,
-      }});
-      broadcastGameState(ui.game);
-    });
-  }
+  import('./net/peer.js').then(({ broadcast }) => {
+    broadcast({ type: 'gameConfig', config: {
+      explorers: allExplorerIds,
+      difficulty: ui.difficulty,
+      numExplorers: explorerDefs.length,
+      assignments: config.assignments,
+    }});
+    broadcastGameState(ui.game);
+  });
 }
 
 /* Démarrage côté pair : reçoit la config de l'hôte */
@@ -297,7 +317,6 @@ function startOnlineGameAsPeer(config) {
   showScreen('screen-game');
   initLog();
   setupPanZoom(ui);
-  // L'état initial viendra via gameState. Afficher un message d'attente.
   toast('En attente de l\'état de la partie...', '');
 }
 
@@ -320,11 +339,32 @@ function fullRender() {
 /* ============================================================
    GESTION DES ACTIONS
    ============================================================ */
+
+/* En mode pair, envoie l'action à l'hôte au lieu d'exécuter localement. */
+function forwardToHost(actionId, args = {}) {
+  if (ui.onlineMode !== 'peer') return false;
+  sendActionToHost(actionId, args);
+  return true;
+}
+
+/* Vérifie si le joueur local peut agir (bon Explorateur). */
+function canLocalAct() {
+  if (ui.onlineMode === 'local' || ui.onlineMode === 'host') return true;
+  if (ui.onlineMode === 'peer') {
+    return clientIsMyTurn(ui.game, net.playerId);
+  }
+  return false;
+}
+
 ui.onAction = function (actionId) {
   const game = ui.game;
   const p = currentPlayer(game);
 
-  // Si une action de ciblage est en cours et qu'on change d'action, annuler
+  if (!canLocalAct()) {
+    toast('Ce n\'est pas votre tour.', '');
+    return;
+  }
+
   clearHighlights();
   ui.pendingAction = null;
 
@@ -333,14 +373,24 @@ ui.onAction = function (actionId) {
     case 'move':      startMove(); break;
     case 'explore':   startExplore(); break;
     case 'heal':      doHeal(); break;
-    case 'pickup':    performPickup(game); afterAction(); break;
-    case 'attack':    performAttack(game); afterAction(); break;
+    case 'pickup':
+      if (forwardToHost('pickup')) return;
+      performPickup(game); afterAction(); break;
+    case 'attack':
+      if (forwardToHost('attack')) return;
+      performAttack(game); afterAction(); break;
     case 'run':       startRun(); break;
     case 'dig':       startDig(); break;
-    case 'push':      performPush(game); afterAction(); break;
+    case 'push':
+      if (forwardToHost('push')) return;
+      performPush(game); afterAction(); break;
     case 'crawl':     startCrawl(); break;
-    case 'escape':    performEscape(game); afterAction(); break;
-    case 'endTurn':   startPerilPhase(); break;
+    case 'escape':
+      if (forwardToHost('escape')) return;
+      performEscape(game); afterAction(); break;
+    case 'endTurn':
+      if (forwardToHost('endTurn')) return;
+      startPerilPhase(); break;
   }
 };
 
@@ -350,6 +400,10 @@ ui.onAbility = function (abilityId) {
   const ability = p.abilities.find(a => a.id === abilityId);
   if (!ability || ability.passive) return;
   if (!canUseAbility(game, abilityId)) return;
+  if (!canLocalAct()) {
+    toast('Ce n\'est pas votre tour.', '');
+    return;
+  }
 
   clearHighlights();
   // Capacités nécessitant un ciblage
@@ -375,10 +429,13 @@ ui.onAbility = function (abilityId) {
     case 'purify':
       startAbilityPurify(abilityId); break;
     case 'annihilate':
+      if (forwardToHost('ability', { abilityId })) return;
       useAbility(game, abilityId); afterAction(); break;
     case 'prepare':
+      if (forwardToHost('ability', { abilityId })) return;
       useAbility(game, abilityId); afterAction(); break;
     case 'consolidate':
+      if (forwardToHost('ability', { abilityId })) return;
       useAbility(game, abilityId); afterAction(); break;
     case 'research':
       startAbilityResearch(abilityId); break;
@@ -396,9 +453,9 @@ function startReveal() {
   if (edges.length === 0) { toast('Aucune issue ouverte.', 'bad'); return; }
   ui.pendingAction = 'reveal';
   highlightRevealEdges(game, ui, cell, (dir) => {
+    if (forwardToHost('reveal', { cellId: cell.x + ',' + cell.y, dir })) return;
     const result = performReveal(game, cell, dir);
     if (result && result.needsRotationChoice) {
-      // Plusieurs orientations possibles : laisser l'utilisateur choisir
       showRotationChoice(result, cell, dir, 'reveal');
     } else {
       checkBagEmpty();
@@ -437,7 +494,7 @@ function showRotationChoice(choice, cell, dir, context) {
       btn.addEventListener('click', () => {
         const rot = parseInt(btn.dataset.rot);
         hideModal();
-        // Re-piocher la même tuile avec la rotation choisie
+        if (forwardToHost(context, { cellId: cell.x + ',' + cell.y, dir, rotation: rot })) return;
         if (context === 'reveal') {
           performReveal(game, cell, dir, rot);
           checkBagEmpty();
@@ -465,6 +522,7 @@ function startMove() {
   if (targets.length === 0) { toast('Aucune tuile atteignable.', 'bad'); return; }
   ui.pendingAction = 'move';
   highlightMoveTargets(game, ui, targets, (t) => {
+    if (forwardToHost('move', { cellId: t.cell.x + ',' + t.cell.y })) return;
     performMove(game, t.cell);
     afterAction();
   });
@@ -479,6 +537,7 @@ function startExplore() {
   if (edges.length === 0) { toast('Aucune issue ouverte.', 'bad'); return; }
   ui.pendingAction = 'explore';
   highlightRevealEdges(game, ui, cell, (dir) => {
+    if (forwardToHost('explore', { cellId: cell.x + ',' + cell.y, dir })) return;
     const result = performExplore(game, cell, dir);
     if (result && result.needsRotationChoice) {
       showRotationChoice(result, cell, dir, 'explore');
@@ -503,21 +562,23 @@ function doHeal() {
   );
 
   if (selfHurt && hurtAlliesHere.length === 0) {
-    // Cas simple : se soigner soi-même
+    if (forwardToHost('heal', { targetId: p.id })) return;
     performHeal(game, p);
     afterAction();
   } else if (hurtAlliesHere.length > 0) {
-    // Choix entre soi-même et les alliés présents
     const candidates = selfHurt ? [p, ...hurtAlliesHere] : hurtAlliesHere;
     if (candidates.length === 1) {
+      if (forwardToHost('heal', { targetId: candidates[0].id })) return;
       performHeal(game, candidates[0]);
       afterAction();
     } else {
-      // Surligner les tuiles des candidats pour choisir
       const cells = candidates.map(c => game.board.cells.get(c.position)).filter(Boolean);
       highlightCellTargets(game, cells, (c) => {
         const target = candidates.find(t => t.x === c.x && t.y === c.y);
-        if (target) { performHeal(game, target); afterAction(); }
+        if (target) {
+          if (forwardToHost('heal', { targetId: target.id })) return;
+          performHeal(game, target); afterAction();
+        }
       });
       toast('Soigner : cliquez un Explorateur à soigner.', '');
     }
@@ -544,7 +605,8 @@ function startRun() {
   toast("Courir : jusqu'à 3 déplacements. Cliquez une tuile.", '');
   const doStep = () => {
     highlightMoveTargets(game, ui, getMoveTargets(game, p), (t) => {
-      performMove(game, t.cell, 0);  // déplacement gratuit (les 2 PA déjà dépensés)
+      if (forwardToHost('move', { cellId: t.cell.x + ',' + t.cell.y, costAP: 0 })) return;
+      performMove(game, t.cell, 0);
       stepsLeft--;
       fullRender();
       if (stepsLeft > 0 && getMoveTargets(game, p).length > 0 && p.state === 'active') {
@@ -566,6 +628,7 @@ function startDig() {
   if (targets.length === 0) { toast('Aucun Éboulis à creuser.', 'bad'); return; }
   ui.pendingAction = 'dig';
   highlightDigTargets(game, targets, (c) => {
+    if (forwardToHost('dig', { cellId: c.x + ',' + c.y })) return;
     performDig(game, c);
     afterAction();
   });
@@ -579,8 +642,8 @@ function startCrawl() {
   if (targets.length === 0) { toast('Aucune tuile atteignable.', 'bad'); return; }
   ui.pendingAction = 'crawl';
   highlightMoveTargets(game, ui, targets, (t) => {
+    if (forwardToHost('crawl', { cellId: t.cell.x + ',' + t.cell.y })) return;
     performCrawl(game, t.cell);
-    // Après ramper, le tour est terminé
     startPerilPhase();
   });
 }
@@ -764,16 +827,36 @@ function tileData() {
 function afterAction() {
   clearHighlights();
   ui.pendingAction = null;
-  // Vérifier les conditions de fin (éruption, tous à terre)
   if (checkGameEnd()) return;
   fullRender();
-  // En ligne : diffuser le nouvel état aux autres joueurs.
-  // Modèle "tour-par-tour avec diffusion" : le joueur actif exécute son
-  // action localement puis broadcast l'état complet. Les autres se contentent
-  // d'afficher l'état reçu. Pas besoin d'hôte autoritaire.
-  if (ui.onlineMode !== 'local' && ui.game) {
+  if (ui.onlineMode === 'host' && ui.game) {
     broadcastGameState(ui.game);
+    handleAutoPlayers();
   }
+}
+
+/* Si l'Explorateur courant est en mode auto, joue son tour. */
+function handleAutoPlayers() {
+  const game = ui.game;
+  if (!game || !game.playerAssignments) return;
+  const p = currentPlayer(game);
+  if (!isAuto(p)) return;
+  setTimeout(() => {
+    playAutoTurn(game, p);
+    const perilFace = rollPeril();
+    resolvePeril(game, perilFace, p);
+    if (game.curseActive) {
+      const perilFace2 = rollPeril();
+      resolvePeril(game, perilFace2, p);
+    }
+    endExplorerTurn(game);
+    fullRender();
+    if (checkGameEnd()) return;
+    broadcastGameState(game);
+    if (isAuto(currentPlayer(game))) {
+      handleAutoPlayers();
+    }
+  }, 500);
 }
 
 /* ============================================================
@@ -783,65 +866,60 @@ function handleRemoteAction(msg, fromPeerId) {
   if (ui.onlineMode !== 'host') return;
   const game = ui.game;
   if (!game) return;
-  const p = currentPlayer(game);
-  // Exécuter l'action demandée sur l'état de l'hôte
-  const { id, args } = msg;
-  switch (id) {
-    case 'reveal':
-      if (args.cellId && args.dir) {
-        const cell = game.board.cells.get(args.cellId);
-        performReveal(game, cell, args.dir, args.rotation || null);
-      }
-      break;
-    case 'move':
-      if (args.cellId) {
-        const cell = game.board.cells.get(args.cellId);
-        performMove(game, cell, args.costAP ?? 1);
-      }
-      break;
-    case 'explore':
-      if (args.cellId && args.dir) {
-        const cell = game.board.cells.get(args.cellId);
-        performExplore(game, cell, args.dir, args.rotation || null);
-      }
-      break;
-    case 'heal':
-      if (args.targetId) {
-        const target = game.explorers.find(e => e.id === args.targetId);
-        performHeal(game, target || p);
-      } else {
-        performHeal(game, p);
-      }
-      break;
-    case 'pickup':  performPickup(game); break;
-    case 'attack':  performAttack(game); break;
-    case 'dig':
-      if (args.cellId) {
-        const cell = game.board.cells.get(args.cellId);
-        performDig(game, cell);
-      }
-      break;
-    case 'push':    performPush(game); break;
-    case 'crawl':
-      if (args.cellId) {
-        const cell = game.board.cells.get(args.cellId);
-        performCrawl(game, cell);
-      }
-      break;
-    case 'escape':  performEscape(game); break;
-    case 'endTurn': startPerilPhase(); return; // géré séparément
-    case 'ability':
-      if (args.abilityId) useAbility(game, args.abilityId, args.target);
-      break;
+
+  const result = handleClientAction(game, fromPeerId, msg);
+  if (!result.accepted) {
+    import('./net/peer.js').then(({ sendToPeer }) => {
+      sendToPeer(fromPeerId, { type: 'actionRejected', reason: result.reason });
+    });
+    return;
   }
-  // L'hôte exécute afterAction (qui diffusera l'état)
   afterAction();
+}
+
+/* Marque les Explorateurs d'un joueur déconnecté comme auto. */
+export function handlePlayerDisconnect(peerId) {
+  const game = ui.game;
+  if (!game || !game.playerAssignments) return;
+  const assignment = game.playerAssignments.find(a => a.playerId === peerId);
+  if (!assignment) return;
+  for (const explorer of game.explorers) {
+    if (assignment.explorerIds.includes(explorer.defId)) {
+      markAsAuto(explorer);
+    }
+  }
+  toast(`Explorateurs de ${peerId} passent en mode auto.`, 'bad');
+  if (ui.onlineMode === 'host') {
+    broadcastGameState(game);
+    handleAutoPlayers();
+  }
+}
+
+/* Restaure les Explorateurs d'un joueur reconnecté. */
+export function handlePlayerReconnect(peerId) {
+  const game = ui.game;
+  if (!game || !game.playerAssignments) return;
+  const assignment = game.playerAssignments.find(a => a.playerId === peerId);
+  if (!assignment) return;
+  for (const explorer of game.explorers) {
+    if (assignment.explorerIds.includes(explorer.defId)) {
+      explorer.auto = false;
+    }
+  }
+  toast(`Joueur ${peerId} reconnecté.`, 'good');
+  if (ui.onlineMode === 'host') {
+    broadcastGameState(game);
+  }
 }
 
 /* ============================================================
    PHASE DE PÉRIL
    ============================================================ */
 function startPerilPhase() {
+  if (ui.onlineMode === 'peer') {
+    sendEndTurnToHost();
+    return;
+  }
   clearHighlights();
   const game = ui.game;
   game.phase = 'perilRoll';
@@ -890,19 +968,16 @@ function showEndTurnButton() {
 
 function finishExplorerTurn() {
   const game = ui.game;
-  // Gérer les actions spéciales sur le sanctuaire avant de passer
-  const p = currentPlayer(game);
-  const cell = explorerCell(game, p);
-  // Si sur le sanctuaire avec une clé, proposer de la poser automatiquement
-  // (géré via bouton ramasser/poser — pas auto)
   endExplorerTurn(game);
-  // Propagation post-tour si éruption en cours
   fullRender();
   if (checkGameEnd()) return;
-  // Repasser en phase exploration pour le joueur suivant
   game.phase = 'explorerTurn';
   toast(`Au tour de ${currentPlayer(game).name}.`, '');
   fullRender();
+  if (ui.onlineMode === 'host') {
+    broadcastGameState(ui.game);
+    handleAutoPlayers();
+  }
 }
 
 function logLocal(msg, type = '') {

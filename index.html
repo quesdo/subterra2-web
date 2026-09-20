@@ -129,7 +129,67 @@
   </div>
 </div>
 
-<!-- ===================== SETUP SCREEN ===================== -->
+<!-- ===================== ÉCRAN SALON (LOBBY) ===================== -->
+<div id="screen-lobby" class="screen">
+  <div class="panel lobby-panel">
+    <button class="btn btn-ghost btn-back" data-back="title">← Retour</button>
+    <h2>Partie en ligne</h2>
+
+    <div class="lobby-section">
+      <h3>Votre nom</h3>
+      <input type="text" id="player-name" class="text-input" placeholder="Votre pseudo" maxlength="16">
+    </div>
+
+    <div class="lobby-section lobby-create">
+      <h3>Créer une partie</h3>
+      <button id="btn-create-room" class="btn btn-primary">Créer un salon</button>
+      <div id="room-code-display" class="room-code-display hidden">
+        <span class="room-label">Code salon :</span>
+        <span id="room-code" class="room-code">ST-XXXX</span>
+        <button id="btn-copy-code" class="btn btn-ghost btn-icon" title="Copier">📋</button>
+        <div id="lobby-status" class="lobby-status">En attente de joueurs...</div>
+        <div id="lobby-players" class="lobby-players"></div>
+        <div id="lobby-attribution" class="lobby-attribution hidden">
+          <h4>Attribution des Explorateurs</h4>
+          <div class="lobby-difficulty">
+            <label>Difficulté :</label>
+            <select id="lobby-difficulty-select" class="text-input">
+              <option value="beginner">Débutant</option>
+              <option value="normal" selected>Normal</option>
+              <option value="advanced">Avancé</option>
+              <option value="expert">Expert</option>
+            </select>
+          </div>
+          <div id="lobby-explorer-grid" class="lobby-explorer-grid"></div>
+          <p class="hint" id="lobby-attribution-hint">Cliquez sur un Explorateur puis choisissez un joueur.</p>
+        </div>
+        <button id="btn-start-online" class="btn btn-primary btn-lg hidden">Lancer la partie</button>
+      </div>
+    </div>
+
+    <div class="lobby-divider"><span>ou</span></div>
+
+    <div class="lobby-section lobby-join">
+      <h3>Rejoindre une partie</h3>
+      <div class="join-row">
+        <input type="text" id="join-code" class="text-input" placeholder="ST-XXXX" maxlength="7">
+        <button id="btn-join-room" class="btn btn-primary">Rejoindre</button>
+      </div>
+      <div id="join-status" class="lobby-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN RÈGLES ===================== -->
+<div id="screen-rules" class="screen">
+  <div class="panel rules-panel">
+    <button class="btn btn-ghost btn-back" data-back="title">← Retour</button>
+    <h2>Règles essentielles</h2>
+    <div class="rules-content" id="rules-content"></div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN SETUP ===================== -->
 <div id="screen-setup" class="screen">
   <div class="panel setup-panel">
     <h2>Préparation de l'expédition</h2>

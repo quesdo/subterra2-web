@@ -8,19 +8,17 @@
 export function serializeGame(game) {
   return {
     ...game,
-    // board.cells : Map<"x,y", Cell> -> [["x,y", {...}], ...]
     board: {
       ...game.board,
       cells: [...game.board.cells.entries()].map(([k, cell]) => [k, { ...cell }]),
     },
-    // sanctuary pointe vers une cell dans board.cells ; on stocke sa clé
-    // pour re-lier après désérialisation (évite la référence dupliquée).
     sanctuary: game.sanctuary ? `${game.sanctuary.x},${game.sanctuary.y}` : null,
-    // explorers : copie superficielle (ce sont des objets plats)
     explorers: game.explorers.map(e => ({ ...e, abilities: e.abilities.map(a => ({ ...a })) })),
-    // bag / journalBag : tableaux d'objets plats
     bag: [...game.bag],
     journalBag: [...game.journalBag],
+    playerAssignments: game.playerAssignments
+      ? game.playerAssignments.map(a => ({ playerId: a.playerId, explorerIds: [...a.explorerIds] }))
+      : null,
   };
 }
 
