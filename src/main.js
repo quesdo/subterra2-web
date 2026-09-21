@@ -1420,5 +1420,8 @@ function showEndScreen() {
   document.getElementById('end-title').addEventListener('click', () => showScreen('screen-title'));
 }
 
+/* Expose ui for HUD ability buttons (volcano-organic HUD) */
+window.ui = ui;
+
 /* Initialize */
 showScreen('screen-title');
