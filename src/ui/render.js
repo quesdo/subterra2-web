@@ -186,8 +186,9 @@ export function renderBoard(state, ui) {
   }
 
   for (const explorer of state.explorers) {
-    if (explorer.state === 'dead' || explorer.state === 'escaped') continue;
-    renderExplorer(explorersLayer, explorer, state, ns);
+    if (explorer.state === 'escaped') continue;
+    const offset = getMeepleOffset(state, explorer);
+    renderExplorer(explorersLayer, explorer, state, ns, offset);
   }
 
   renderHighlights(highlightsLayer, ns);
@@ -344,7 +345,7 @@ function renderCell(tilesLayer, markersLayer, guardiansLayer, cell, state, ns) {
   tilesLayer.appendChild(g);
 
   if (cell.rubble && !cell.flipped) {
-    drawMarker(markersLayer, ns, x + TILE_SIZE / 2, y + TILE_SIZE / 2, 'éb', '#a08060');
+    drawRubbleMarker(markersLayer, ns, x + TILE_SIZE / 2, y + TILE_SIZE / 2);
   }
   if (cell.keyMarker && !cell.flipped) {
     drawMarker(markersLayer, ns, x + TILE_SIZE / 2, y + 12, '🔑', '#d4af37');
@@ -440,6 +441,26 @@ function drawMarker(layer, ns, cx, cy, text, color) {
   layer.appendChild(t);
 }
 
+function drawRubbleMarker(layer, ns, cx, cy) {
+  const g = document.createElementNS(ns, 'g');
+  g.setAttribute('transform', `translate(${cx},${cy})`);
+  g.setAttribute('pointer-events', 'none');
+  const stones = [[-12, 4], [-2, -4], [8, 6], [2, 8], [-8, -6]];
+  for (const [sx, sy] of stones) {
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', sx - 5);
+    r.setAttribute('y', sy - 3);
+    r.setAttribute('width', 10);
+    r.setAttribute('height', 6);
+    r.setAttribute('rx', 2);
+    r.setAttribute('fill', '#6b5d50');
+    r.setAttribute('stroke', '#3a3025');
+    r.setAttribute('stroke-width', 1);
+    g.appendChild(r);
+  }
+  layer.appendChild(g);
+}
+
 function drawGuardian(layer, ns, cx, cy) {
   const tri = document.createElementNS(ns, 'polygon');
   tri.setAttribute('points', `${cx},${cy - 10} ${cx - 8},${cy + 4} ${cx + 8},${cy + 4}`);
@@ -450,13 +471,14 @@ function drawGuardian(layer, ns, cx, cy) {
   layer.appendChild(tri);
 }
 
-function renderExplorer(layer, explorer, state, ns) {
-  const x = px(explorer.x) + TILE_SIZE / 2;
-  const y = py(explorer.y) + TILE_SIZE / 2;
+function renderExplorer(layer, explorer, state, ns, offset = [0, 0]) {
+  const x = px(explorer.x) + TILE_SIZE / 2 + offset[0];
+  const y = py(explorer.y) + TILE_SIZE / 2 + offset[1];
   const isActive = state.explorers[state.currentExplorerIdx] === explorer;
 
   const g = document.createElementNS(ns, 'g');
-  g.setAttribute('class', 'meeple' + (isActive ? ' current' : '') + (explorer.state === 'down' ? ' down' : ''));
+  g.setAttribute('class', 'meeple' + (isActive ? ' current' : '') + (explorer.state === 'down' ? ' down' : '') + (explorer.state === 'dead' ? ' dead' : ''));
+  g.dataset.explorerId = explorer.id;
 
   const def = getExplorerDef(explorer.id);
   const color = def ? def.color : '#999';
@@ -524,6 +546,19 @@ function renderExplorer(layer, explorer, state, ns) {
     body.setAttribute('opacity', '0.6');
   }
 
+  if (explorer.state === 'dead') {
+    body.setAttribute('opacity', '0.3');
+    body.setAttribute('transform', `rotate(180 ${x} ${y})`);
+    const skull = document.createElementNS(ns, 'text');
+    skull.setAttribute('x', x);
+    skull.setAttribute('y', y + 5);
+    skull.setAttribute('font-size', '16');
+    skull.setAttribute('text-anchor', 'middle');
+    skull.setAttribute('pointer-events', 'none');
+    skull.textContent = '💀';
+    g.appendChild(skull);
+  }
+
   g.appendChild(body);
 
   if (explorer.item) {
@@ -539,9 +574,25 @@ function renderExplorer(layer, explorer, state, ns) {
   layer.appendChild(g);
 }
 
+function getMeepleOffset(state, explorer) {
+  const k = `${explorer.x},${explorer.y}`;
+  const same = state.explorers.filter(e => e.state !== 'escaped' && `${e.x},${e.y}` === k);
+  if (same.length <= 1) return [0, 0];
+  const idx = same.indexOf(explorer);
+  const offsets = [
+    [0, 0],
+    [-10, -8], [10, 8],
+    [-12, -8], [12, -8], [0, 10],
+    [-12, -10], [12, -10], [-12, 10], [12, 10],
+  ];
+  return offsets[idx] || [0, 0];
+}
+
 function getExplorerDef(id) {
   return EXPLORERS.find(e => e.id === id) || null;
 }
+
+
 
 export function highlightMoveTargets(state, targets, callback) {
   clearHighlights();

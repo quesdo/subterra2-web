@@ -1064,10 +1064,10 @@ function cancelTileDraw(state, draw) {
 function showTileChoiceModal(draw, onChosen) {
   const modal = document.createElement('div');
   modal.id = 'tile-choice-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:300;display:flex;align-items:center;justify-content:center;pointer-events:none;';
 
   const card = document.createElement('div');
-  card.style.cssText = 'background:var(--c-panel);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:600px;';
+  card.style.cssText = 'background:rgba(42,32,26,.95);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:600px;pointer-events:all;';
   card.innerHTML = '<h3 style="color:var(--c-ember);margin:0 0 16px;letter-spacing:1px;">Choisissez une tuile</h3>';
 
   const tilesRow = document.createElement('div');
@@ -1108,10 +1108,10 @@ function showTileChoiceModal(draw, onChosen) {
 function showRotationPickerModal(draw, chosenTile, onConfirmed) {
   const modal = document.createElement('div');
   modal.id = 'rotation-picker-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:300;display:flex;align-items:center;justify-content:center;pointer-events:none;';
 
   const card = document.createElement('div');
-  card.style.cssText = 'background:var(--c-panel);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:520px;';
+  card.style.cssText = 'background:rgba(42,32,26,.95);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:520px;pointer-events:all;';
   const label = TILE_TYPE_LABELS[chosenTile.tileDef.type] || chosenTile.tileDef.type;
   card.innerHTML = `<h3 style="color:var(--c-ember);margin:0 0 16px;letter-spacing:1px;">Choisissez la rotation</h3><div style="margin-bottom:12px;color:var(--c-text);font-weight:700;">${label}</div>`;
 
@@ -1189,6 +1189,35 @@ function startPerilPhase() {
 
 ui.onRollPeril = function() {
   const state = ui.state;
+  const explorer = getActiveExplorer(state);
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--c-panel);border:2px solid var(--c-lava);border-radius:12px;padding:24px;text-align:center;max-width:360px;box-shadow:0 0 20px rgba(232,85,42,.4);';
+  card.innerHTML = `<h3 style="color:var(--c-lava);margin:0 0 8px;">Lancer le dé de Péril ?</h3><p style="color:var(--c-text-dim);margin:0 0 16px;font-size:13px;">Tour de ${explorer.name}</p>`;
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;justify-content:center;';
+  const yes = document.createElement('button');
+  yes.className = 'btn btn-primary';
+  yes.textContent = '🎲 Lancer';
+  yes.addEventListener('click', () => {
+    modal.remove();
+    doRollPeril();
+  });
+  const no = document.createElement('button');
+  no.className = 'btn';
+  no.textContent = 'Annuler';
+  no.addEventListener('click', () => modal.remove());
+  btnRow.appendChild(yes);
+  btnRow.appendChild(no);
+  card.appendChild(btnRow);
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+};
+
+function doRollPeril() {
+  const state = ui.state;
   const face = rollPeril();
   const faceData = PERIL_FACES[face];
   const explorer = getActiveExplorer(state);
@@ -1210,7 +1239,7 @@ ui.onRollPeril = function() {
   } else {
     setTimeout(() => finishPerilPhase(), 1200);
   }
-};
+}
 
 function showPerilResult(faceData) {
   const el = document.getElementById('peril-result');
