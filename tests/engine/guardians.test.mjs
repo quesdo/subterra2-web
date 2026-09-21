@@ -83,7 +83,7 @@ function moveAllExplorers(state, x, y) {
   assert.strictEqual(cell.guardians.length, 1);
 });
 
-/* 4 */ test('wakeNearestGuardian can place on a tile that already has a guardian', () => {
+/* 4 */ test('wakeNearestGuardian skips occupied anchor and finds next nearest', () => {
   const state = makeState();
   const anchorCell = getCell(state, 3, 0);
   spawnGuardian(state.guardians, anchorCell);
@@ -91,9 +91,11 @@ function moveAllExplorers(state, x, y) {
   assert.strictEqual(state.guardians.available, 4);
   const cell = wakeNearestGuardian(state);
   assert.ok(cell);
-  assert.strictEqual(cell.x, 3);
+  // (3,0) is occupied, so it should find the other anchor at (-3,0)
+  assert.strictEqual(cell.x, -3);
   assert.strictEqual(cell.y, 0);
-  assert.strictEqual(cell.guardians.length, 2);
+  assert.strictEqual(cell.guardians.length, 1);
+  assert.strictEqual(anchorCell.guardians.length, 1);
   assert.strictEqual(state.guardians.available, 3);
 });
 
@@ -117,10 +119,12 @@ function moveAllExplorers(state, x, y) {
   spawnGuardian(state.guardians, cellA);
   spawnGuardian(state.guardians, cellB);
   const hpScout = state.explorers[0].hp;
-  const hpMiner = state.explorers[1].hp;
+  const hpNurse = state.explorers[2].hp;
   activateAllGuardians(state);
+  // Guardian at (1,0) attacks scout (only active explorer there)
   assert.strictEqual(state.explorers[0].hp, hpScout - 1);
-  assert.strictEqual(state.explorers[1].hp, hpMiner - 1);
+  // Guardian at (0,0) attacks nurse (lowest HP on tile: nurse 5 < miner 7)
+  assert.strictEqual(state.explorers[2].hp, hpNurse - 1);
 });
 
 /* 7 */ test('guardian attacks active explorer on same tile (1 HP damage)', () => {

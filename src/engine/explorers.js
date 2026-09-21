@@ -136,7 +136,7 @@ export const ABILITIES = {
     cost: 1,
     passive: false,
     uses: null,
-    description: 'Un Explorateur visible à ≤2 tuiles récupère 2 PV.',
+    description: 'Un Explorateur visible à ≤2 tuiles récupère 2 PV (ranime les à terre).',
   },
   survivor: {
     id: 'survivor',

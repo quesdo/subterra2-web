@@ -180,7 +180,10 @@ export function getCell(state, x, y) {
 }
 
 export function damage(state, explorer, amount, source) {
-  if (explorer.shielded && source !== 'push') return false;
+  if (explorer.shielded && source !== 'push') {
+    log(state, `${explorer.name} est protégé (Bouclier) — aucun dégât de ${source}`);
+    return false;
+  }
   if (explorer.state === 'dead' || explorer.state === 'escaped') return false;
 
   explorer.hp = Math.max(0, explorer.hp - amount);

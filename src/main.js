@@ -665,28 +665,34 @@ function startOrder() {
   const state = ui.state;
   const allies = state.explorers.filter(e => e.state === 'active' && e.id !== getActiveExplorer(state).id);
   if (allies.length === 0) { toast('Aucun allié ordonnable.', 'bad'); return; }
-  const cells = allies.map(e => ({ x: e.x, y: e.y, explorerId: e.id }));
-  highlightCellTargets(state, cells.map(c => ({ x: c.x, y: c.y })), (clicked) => {
-    const ally = allies.find(a => a.x === clicked.x && a.y === clicked.y);
-    if (!ally) { afterAction(); return; }
-    const allyTargets = [];
-    const cell = getCell(state, ally.x, ally.y);
-    if (cell) {
-      for (const dir of DIRS) {
-        const [dx, dy] = DIR_DELTA[dir];
-        const nx = ally.x + dx;
-        const ny = ally.y + dy;
-        const nb = getCell(state, nx, ny);
-        if (!nb || nb.flipped) continue;
-        if (!areConnected(state.board, ally.x, ally.y, nx, ny)) continue;
-        if (nb.rubble) continue;
-        allyTargets.push({ x: nx, y: ny });
+  const uniqueCells = [];
+  for (const e of allies) {
+    if (!uniqueCells.some(c => c.x === e.x && c.y === e.y)) uniqueCells.push({ x: e.x, y: e.y });
+  }
+  highlightCellTargets(state, uniqueCells, (clicked) => {
+    const onCell = allies.filter(a => a.x === clicked.x && a.y === clicked.y);
+    if (onCell.length === 0) { afterAction(); return; }
+    pickExplorerOnCell(onCell, (ally) => {
+      if (!ally) { afterAction(); return; }
+      const allyTargets = [];
+      const cell = getCell(state, ally.x, ally.y);
+      if (cell) {
+        for (const dir of DIRS) {
+          const [dx, dy] = DIR_DELTA[dir];
+          const nx = ally.x + dx;
+          const ny = ally.y + dy;
+          const nb = getCell(state, nx, ny);
+          if (!nb || nb.flipped) continue;
+          if (!areConnected(state.board, ally.x, ally.y, nx, ny)) continue;
+          if (nb.rubble) continue;
+          allyTargets.push({ x: nx, y: ny });
+        }
       }
-    }
-    if (allyTargets.length === 0) { toast(`${ally.name} ne peut bouger.`, 'bad'); afterAction(); return; }
-    highlightMoveTargets(state, allyTargets, (t) => {
-      useOrder(state, ally.id, t.x, t.y);
-      afterAction();
+      if (allyTargets.length === 0) { toast(`${ally.name} ne peut bouger.`, 'bad'); afterAction(); return; }
+      highlightMoveTargets(state, allyTargets, (t) => {
+        useOrder(state, ally.id, t.x, t.y);
+        afterAction();
+      });
     });
   });
   toast('Ordonner : cliquez un allié à déplacer.');
@@ -886,14 +892,18 @@ function startAbilityHeal() {
     lineOfSight(state.board, explorer.x, explorer.y, e.x, e.y, 2)
   );
   if (targets.length === 0) { toast('Aucun allié à soigner visible.', 'bad'); return; }
-  const cells = targets.map(e => ({ x: e.x, y: e.y }));
-  highlightCellTargets(state, cells, (c) => {
-    const target = targets.find(t => t.x === c.x && t.y === c.y);
-    if (target) {
+  const uniqueCells = [];
+  for (const e of targets) {
+    if (!uniqueCells.some(c => c.x === e.x && c.y === e.y)) uniqueCells.push({ x: e.x, y: e.y });
+  }
+  highlightCellTargets(state, uniqueCells, (c) => {
+    const onCell = targets.filter(t => t.x === c.x && t.y === c.y);
+    pickExplorerOnCell(onCell, (target) => {
+      if (!target) { afterAction(); return; }
       const result = useHeal(state, target.id);
       if (!result.ok) { toast('Guérison impossible.', 'bad'); }
-    }
-    afterAction();
+      afterAction();
+    });
   });
   toast('Guérir : cliquez un allié visible (≤2).');
 }
@@ -904,14 +914,18 @@ function startRevive() {
     e.id !== getActiveExplorer(state).id && e.state !== 'dead' && e.state !== 'escaped'
   );
   if (targets.length === 0) { toast('Aucun allié.', 'bad'); return; }
-  const cells = targets.map(e => ({ x: e.x, y: e.y }));
-  highlightCellTargets(state, cells, (c) => {
-    const target = targets.find(t => t.x === c.x && t.y === c.y);
-    if (target) {
+  const uniqueCells = [];
+  for (const e of targets) {
+    if (!uniqueCells.some(c => c.x === e.x && c.y === e.y)) uniqueCells.push({ x: e.x, y: e.y });
+  }
+  highlightCellTargets(state, uniqueCells, (c) => {
+    const onCell = targets.filter(t => t.x === c.x && t.y === c.y);
+    pickExplorerOnCell(onCell, (target) => {
+      if (!target) { afterAction(); return; }
       const result = useRevive(state, target.id);
       if (!result.ok) { toast('Ranimat impossible.', 'bad'); }
-    }
-    afterAction();
+      afterAction();
+    });
   });
   toast('Ranimer : cliquez un allié.');
 }
@@ -1046,6 +1060,50 @@ function buildTilePreviewSVG(tileDef, rotation) {
 
 function closeModal(modal) {
   if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+}
+
+function pickExplorerOnCell(explorers, callback) {
+  if (!explorers || explorers.length <= 1) {
+    callback(explorers ? explorers[0] : null);
+    return;
+  }
+  const modal = document.createElement('div');
+  modal.id = 'explorer-picker-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:300;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'background:rgba(42,32,26,.95);border:2px solid var(--c-ember);border-radius:12px;padding:24px;box-shadow:0 0 30px rgba(245,166,35,.5);text-align:center;max-width:420px;pointer-events:all;';
+  card.innerHTML = '<h3 style="color:var(--c-ember);margin:0 0 16px;letter-spacing:1px;">Choisissez un Explorateur</h3>';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;';
+
+  for (const e of explorers) {
+    const def = EXPLORERS.find(d => d.id === e.id);
+    const btn = document.createElement('div');
+    btn.style.cssText = 'cursor:pointer;padding:12px;border:2px solid var(--c-border);border-radius:8px;transition:all .15s;text-align:center;min-width:120px;';
+    btn.innerHTML = `<img src="assets/images/explorers/${e.id}.png" alt="" style="width:48px;height:48px;border-radius:50%;border:2px solid ${def?.color || '#999'};margin-bottom:8px;"><div style="color:var(--c-text);font-weight:700;">${e.name}</div><div style="font-size:12px;color:var(--c-text-dim);margin-top:4px;">${e.hp} PV</div>`;
+    btn.addEventListener('mouseenter', () => { btn.style.borderColor = 'var(--c-ember)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.borderColor = 'var(--c-border)'; });
+    btn.addEventListener('click', () => {
+      closeModal(modal);
+      callback(e);
+    });
+    row.appendChild(btn);
+  }
+  card.appendChild(row);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'act-btn';
+  cancelBtn.textContent = 'Annuler';
+  cancelBtn.addEventListener('click', () => {
+    closeModal(modal);
+    afterAction();
+  });
+  card.appendChild(cancelBtn);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
 }
 
 function returnTileToBag(state, draw, chosenTile) {

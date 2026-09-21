@@ -195,10 +195,10 @@ test('dead explorer rolling activate still activates guardians', () => {
   state.explorers[1].state = 'active';
   const cell = getCell(state, 0, 0);
   spawnGuardian(state.guardians, cell);
-  const hpBefore = state.explorers[1].hp;
+  const hpNurse = state.explorers[2].hp;
   resolvePeril(state, 'activate');
-  // Guardian should still attack the active explorer on the tile
-  assert.equal(state.explorers[1].hp, hpBefore - 1);
+  // Guardian attacks weakest active explorer on tile (nurse 5 < miner 7)
+  assert.equal(state.explorers[2].hp, hpNurse - 1);
 });
 
 test('escaped explorer is not damaged by lava peril', () => {

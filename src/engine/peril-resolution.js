@@ -32,7 +32,7 @@ export function wakeNearestGuardianAt(state, x, y) {
     state.board,
     x,
     y,
-    (cell) => cell.guardianAnchor || cell.type === 'gardien',
+    (cell) => (cell.guardianAnchor || cell.type === 'gardien') && (!cell.guardians || cell.guardians.length === 0),
     { ignoreRubble: true },
   );
   if (!result) return null;

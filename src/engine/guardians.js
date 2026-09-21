@@ -20,7 +20,7 @@ export function wakeNearestGuardian(state) {
     state.board,
     explorer.x,
     explorer.y,
-    (cell) => cell.guardianAnchor || cell.type === 'gardien',
+    (cell) => (cell.guardianAnchor || cell.type === 'gardien') && (!cell.guardians || cell.guardians.length === 0),
     { ignoreRubble: true },
   );
   if (!result) return null;
@@ -73,8 +73,9 @@ export function activateOneGuardian(state, cell) {
     (e) => e.x === cell.x && e.y === cell.y && e.state === 'active',
   );
   if (activeExplorers.length > 0) {
-    // TODO: Chef d'Expédition chooses target. For now, pick first.
-    const target = activeExplorers[0];
+    // Sort by HP ascending — guardian targets weakest first
+    // TODO: Chef d'Expédition should choose target
+    const target = activeExplorers.sort((a, b) => a.hp - b.hp)[0];
     damage(state, target, 1, 'guardian');
     log(state, `Gardien attaque ${target.name}`);
     return 'attack';
