@@ -186,6 +186,7 @@ function fullRender() {
   refreshHUD(state);
   renderActionButtons(state, ui);
   refreshLog(state);
+  fitView();
 }
 
 /* ============================================================
