@@ -48,6 +48,18 @@ const ui = {
 /* ============================================================
    SCREEN NAVIGATION
    ============================================================ */
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (!_resizeTimer) {
+    _resizeTimer = setTimeout(() => {
+      _resizeTimer = null;
+      if (document.getElementById('screen-game').classList.contains('active')) {
+        fitView();
+      }
+    }, 150);
+  }
+});
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -153,7 +165,7 @@ function startGame() {
   initBoard(svg);
   startExplorerTurn(ui.state);
   fullRender();
-  setTimeout(() => fitView(), 50);
+  requestAnimationFrame(() => requestAnimationFrame(() => fitView()));
 }
 
 /* ============================================================
