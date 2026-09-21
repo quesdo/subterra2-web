@@ -1,4 +1,4 @@
-/* hud.js — HUD panel: active explorer, team, volcano track (volcano-organic theme) */
+/* hud.js — Compact responsive HUD (volcano-organic theme) */
 import { EXPLORERS, ABILITIES } from '../engine/explorers.js';
 import { canUseAbility } from '../engine/abilities.js';
 
@@ -14,40 +14,23 @@ export function refreshHUD(state) {
   if (!def) return;
   const color = def.color || '#999';
 
-  /* ── HP hearts ── */
   const hearts = Array.from({ length: active.maxHp }, (_, i) =>
     `<span class="hud-heart ${i < active.hp ? 'filled' : 'empty'}">${HEART_SVG}</span>`
   ).join('');
 
-  /* ── AP gems ── */
   const maxAp = 3;
   const gems = Array.from({ length: maxAp }, (_, i) =>
     `<span class="hud-gem ${i < state.ap ? 'available' : 'spent'}"></span>`
   ).join('');
 
-  /* ── Item slot ── */
-  const itemHtml = active.item
-    ? `<div class="hud-item-slot" title="${active.item === 'key' ? 'Clé' : 'Artefact'}">
-         ${active.item === 'key' ? '🔑' : '★'}
-       </div>`
-    : '';
+  let badges = '';
+  if (active.state === 'down') badges += '<span class="hud-badge down" title="À terre">↓</span>';
+  else if (active.state === 'dead') badges += '<span class="hud-badge dead" title="Mort">💀</span>';
+  else if (active.state === 'escaped') badges += '<span class="hud-badge escaped" title="Sorti">↑</span>';
+  if (active.shielded) badges += '<span class="hud-badge shield" title="Bouclier actif">🛡</span>';
+  if (active.item === 'key') badges += '<span class="hud-badge item" title="Porte une Clé">🔑</span>';
+  else if (active.item === 'artifact') badges += '<span class="hud-badge item" title="Porte l\'Artefact">★</span>';
 
-  /* ── Shield ── */
-  const shieldHtml = active.shielded
-    ? `<div class="hud-shield" title="Bouclier actif">🛡</div>`
-    : '';
-
-  /* ── State badge ── */
-  let stateBadge = '';
-  if (active.state === 'down') {
-    stateBadge = `<span class="hud-state-badge down">À terre</span>`;
-  } else if (active.state === 'dead') {
-    stateBadge = `<span class="hud-state-badge dead">Mort</span>`;
-  } else if (active.state === 'escaped') {
-    stateBadge = `<span class="hud-state-badge escaped">Sorti</span>`;
-  }
-
-  /* ── Abilities ── */
   const abilityCards = def.abilities.map(abId => {
     const ab = ABILITIES[abId];
     if (!ab) return '';
@@ -57,118 +40,90 @@ export function refreshHUD(state) {
     const costLabel = ab.passive
       ? `<span class="hud-ab-cost passive">Passif</span>`
       : ab.costType === 'hp'
-        ? `<span class="hud-ab-cost hp">${ab.cost} PV</span>`
-        : `<span class="hud-ab-cost">${ab.cost} PA</span>`;
-
+        ? `<span class="hud-ab-cost hp">${ab.cost}PV</span>`
+        : `<span class="hud-ab-cost">${ab.cost}PA</span>`;
     if (ab.passive) {
-      return `
-        <div class="hud-ability-card passive" title="${ab.description}">
-          <div class="hud-ab-name">${ab.name}</div>
-          <div class="hud-ab-row">${costLabel}${usesText}</div>
-        </div>`;
-    }
-
-    const canUse = canUseAbility(state, abId);
-    return `
-      <div class="hud-ability-card ${canUse ? 'enabled' : 'disabled'}" data-ability="${abId}" title="${ab.description}">
-        <div class="hud-ab-name">${ab.name}</div>
-        <div class="hud-ab-row">${costLabel}${usesText}</div>
+      return `<div class="hud-ability-card passive" title="${ab.description}">
+        <span class="hud-ab-name">${ab.name}</span>${costLabel}${usesText}
       </div>`;
+    }
+    const canUse = canUseAbility(state, abId);
+    return `<div class="hud-ability-card ${canUse ? 'enabled' : 'disabled'}" data-ability="${abId}" title="${ab.description}">
+      <span class="hud-ab-name">${ab.name}</span>${costLabel}${usesText}
+    </div>`;
   }).join('');
 
-  /* ── Team list ── */
   const teamHtml = state.explorers.map((e, i) => {
     const d = EXPLORERS.find(ex => ex.id === e.id);
     const isCurrent = i === state.currentExplorerIdx;
-    const rowClasses = [
-      'hud-team-row',
-      isCurrent ? 'current' : '',
-      e.state === 'down' ? 'downed' : '',
-      e.state === 'dead' ? 'dead' : '',
-      e.state === 'escaped' ? 'escaped' : '',
-    ].filter(Boolean).join(' ');
-
-    const miniHearts = Array.from({ length: e.maxHp }, (_, j) =>
-      `<span class="hud-mini-heart ${j < e.hp ? 'filled' : 'empty'}">${HEART_SVG}</span>`
+    const cls = ['hud-team-row', isCurrent ? 'current' : '',
+      e.state === 'down' ? 'downed' : '', e.state === 'dead' ? 'dead' : '',
+      e.state === 'escaped' ? 'escaped' : ''].filter(Boolean).join(' ');
+    const dots = Array.from({ length: e.maxHp }, (_, j) =>
+      `<span class="hud-team-dot ${j < e.hp ? 'filled' : 'empty'}"></span>`
     ).join('');
-
-    let stateIcon = '';
-    if (e.state === 'down') stateIcon = '<span class="hud-team-state">↓</span>';
-    else if (e.state === 'dead') stateIcon = '<span class="hud-team-state">💀</span>';
-    else if (e.state === 'escaped') stateIcon = '<span class="hud-team-state escaped">↑</span>';
-
-    return `
-      <div class="${rowClasses}">
-        <img class="hud-team-avatar" src="assets/images/explorers/${e.id}.png" alt=""
-             style="border-color:${d?.color || '#999'}">
-        <span class="hud-team-name">${d?.name || e.id}</span>
-        <div class="hud-team-hearts">${miniHearts}</div>
-        ${stateIcon}
-      </div>`;
+    let st = '';
+    if (e.state === 'down') st = ' ↓';
+    else if (e.state === 'dead') st = ' 💀';
+    else if (e.state === 'escaped') st = ' ↑';
+    return `<div class="${cls}">
+      <img class="hud-team-avatar" src="assets/images/explorers/${e.id}.png" alt="" loading="lazy" style="border-color:${d?.color || '#999'}">
+      <span class="hud-team-name">${d?.name || e.id}${st}</span>
+      <span class="hud-team-dots">${dots}</span>
+    </div>`;
   }).join('');
 
-  /* ── Volcano track ── */
   const vp = state.volcano.position;
   const maxVolcano = 27;
   const trackPct = Math.max(0, Math.min(100, ((maxVolcano - vp) / maxVolcano) * 100));
   const volcanoStatus = vp === 0
     ? '<span class="hud-volcano-ready">PRÊT!</span>'
     : `<span class="hud-volcano-num">${vp}</span>`;
-  const cursedHtml = state.volcano.cursed ? '<span class="hud-volcano-cursed">☠</span>' : '';
+  const cursedHtml = state.volcano.cursed ? ' <span class="hud-volcano-cursed">☠</span>' : '';
+  const volcanoClass = state.volcano.erupted ? 'erupted' : state.volcano.erupting ? 'erupting' : '';
 
-  /* ── Keys ── */
   const keysHtml = state.keysPlacedOnSanctuary > 0
-    ? `<div class="hud-keys"><span class="hud-key-slot">🔑</span> ${state.keysPlacedOnSanctuary}/3</div>`
+    ? `<div class="hud-keys">🔑 ${state.keysPlacedOnSanctuary}/3</div>`
     : '';
 
   panel.innerHTML = `
     <div class="hud-card hud-active-card" style="--explorer-color:${color};">
-      <div class="hud-portrait-row">
-        <img class="hud-explorer-portrait" src="assets/images/explorers/${active.id}.png" alt=""
-             style="border-color:${color}; box-shadow:0 0 14px ${color}55, inset 0 0 8px rgba(0,0,0,.3);">
-        <div class="hud-portrait-info">
+      <div class="hud-active-header">
+        <img class="hud-active-portrait" src="assets/images/explorers/${active.id}.png" alt=""
+             style="border-color:${color}; box-shadow:0 0 10px ${color}44;">
+        <div class="hud-active-info">
           <div class="hud-active-name" style="color:${color}">${def.name || active.id}</div>
           <div class="hud-active-role">${def.role || ''}</div>
-          <div class="hud-badges">${stateBadge}${shieldHtml}${itemHtml}</div>
+          <div class="hud-active-badges">${badges}</div>
         </div>
       </div>
-      <div class="hud-stat-row">
-        <span class="hud-stat-label">PV:</span>
-        <div class="hud-hp-hearts">${hearts}</div>
-        <span class="hud-stat-num">${active.hp}/${active.maxHp}</span>
+      <div class="hud-stats">
+        <span class="hud-hearts">${hearts}</span>
+        <span class="hud-hearts-num">${active.hp}/${active.maxHp}PV</span>
       </div>
-      <div class="hud-stat-row">
-        <span class="hud-stat-label">PA:</span>
-        <div class="hud-ap-gems">${gems}</div>
-        <span class="hud-stat-num">${state.ap}</span>
+      <div class="hud-stats">
+        <span class="hud-gems">${gems}</span>
+        <span class="hud-gems-num">${state.ap}PA</span>
       </div>
     </div>
-
     <div class="hud-section-title">Capacités</div>
     <div class="hud-abilities">${abilityCards}</div>
-
     <div class="hud-section-title">Expédition</div>
     <div class="hud-team-list">${teamHtml}</div>
-
-    <div class="hud-volcano-track ${state.volcano.erupted ? 'erupted' : state.volcano.erupting ? 'erupting' : ''}">
+    <div class="hud-volcano-track ${volcanoClass}">
       <div class="hud-volcano-bar">
         <div class="hud-volcano-fill" style="width:${trackPct}%"></div>
         <div class="hud-volcano-marker" style="left:${trackPct}%"></div>
       </div>
-      <div class="hud-volcano-label">
-        🔥 Éruption: ${volcanoStatus} ${cursedHtml}
-      </div>
+      <div class="hud-volcano-label">🔥 ${volcanoStatus}${cursedHtml}</div>
     </div>
-
     ${keysHtml}
   `;
 
-  /* ── Wire up ability buttons ── */
   panel.querySelectorAll('.hud-ability-card.enabled[data-ability]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const abId = btn.dataset.ability;
       if (window.ui && typeof window.ui.onAbility === 'function') {
-        window.ui.onAbility(abId);
+        window.ui.onAbility(btn.dataset.ability);
       }
     });
   });
