@@ -1,5 +1,5 @@
 import { getActiveExplorer, log } from './state.js';
-import { activateAllGuardians, resetActivationFlags } from './guardians.js';
+import { activateAllGuardiansWithLog, resetActivationFlags } from './guardians.js';
 import { advanceEruption, spreadLava } from './volcano.js';
 import { checkEndConditions } from './endgame.js';
 
@@ -56,7 +56,7 @@ export function endExplorerTurn(state) {
 
 export function endGameTurn(state) {
   for (let i = 0; i < 2; i++) {
-    activateAllGuardians(state);
+    activateAllGuardiansWithLog(state);
   }
   log(state, `Gardiens activés 2×`);
 

@@ -125,6 +125,35 @@ export function activateOneGuardian(state, cell) {
   return 'idle';
 }
 
+export function activateAllGuardiansWithLog(state) {
+  resetActivationFlags(state);
+
+  const cellsWithGuardians = [];
+  for (const cell of state.board.cells.values()) {
+    if (cell.guardians && cell.guardians.length > 0) {
+      cellsWithGuardians.push(cell);
+    }
+  }
+
+  if (cellsWithGuardians.length === 0) {
+    log(state, `Aucun Gardien à activer`);
+    return;
+  }
+
+  for (const cell of cellsWithGuardians) {
+    while ((cell.guardians || []).some((g) => !g.activatedThisPhase)) {
+      const action = activateOneGuardian(state, cell);
+      if (action === 'idle') {
+        const g = (cell.guardians || []).find(gg => !gg.activatedThisPhase);
+        if (g) {
+          g.activatedThisPhase = true;
+          log(state, `Gardien en (${cell.x}, ${cell.y}) inactive (aucune cible accessible)`);
+        }
+      }
+    }
+  }
+}
+
 export function returnGuardiansToPool(state, guardians) {
   return stateReturnGuardiansToPool(state.guardians, guardians);
 }

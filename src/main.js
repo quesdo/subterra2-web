@@ -4,7 +4,7 @@ import {
   reveal, move, explore, performHeal, attack, dig, run,
   manageObject, push, crawl, getMoveTargets, getRevealTargets,
   getDigTargets, canDoAction, spendAP, onTilePlaced,
-  triggerSpikes, triggerDarts,
+  triggerSpikes, triggerDarts, moveExplorer,
   drawTileForReveal, confirmTilePlacement,
   drawTileForExplore, confirmExplorePlacement,
 } from './engine/actions.js';
@@ -391,7 +391,7 @@ function startRun() {
   if (state.ap < 2) { toast('Pas assez de PA pour Courir (2 PA).', 'bad'); return; }
   const targets = getMoveTargets(state);
   if (targets.length === 0) { toast('Aucune tuile atteignable.', 'bad'); return; }
-  state.ap += 1;  // bonus AP: 3 moves for 2 PA (move() spends 1 AP each)
+  state.ap -= 2;
   ui.runStepsLeft = 3;
   ui.pendingAction = 'run';
   doRunStep();
@@ -411,7 +411,9 @@ function doRunStep() {
   }
   toast(`Courir : ${ui.runStepsLeft} déplacement(s) restant(s).`);
   highlightMoveTargets(state, targets, (t) => {
-    move(state, t.x, t.y);
+    const explorer = getActiveExplorer(state);
+    moveExplorer(state, explorer, t.x, t.y, { skipAP: true });
+    fullRender();
     ui.runStepsLeft--;
     fullRender();
     if (ui.runStepsLeft > 0 && getActiveExplorer(state).state === 'active') {
@@ -1276,6 +1278,8 @@ ui.onRollPeril = function() {
 
 function doRollPeril() {
   const state = ui.state;
+  const wasErupted = state.volcano.erupted;
+  const wasErupting = state.volcano.erupting;
   const face = rollPeril();
   const faceData = PERIL_FACES[face];
   const explorer = getActiveExplorer(state);
@@ -1285,6 +1289,16 @@ function doRollPeril() {
   resolvePeril(state, face);
   log(state, `🎲 ${explorer.name} : ${faceData.glyph} ${faceData.label}.`);
 
+  if (!wasErupting && state.volcano.erupting) {
+    showEruptionReadyOverlay();
+  }
+
+  if (!wasErupted && state.volcano.erupted) {
+    showEruptionOverlay();
+    setTimeout(() => continuePerilPhase(state), 3000);
+    return;
+  }
+
   if (state.curseActive) {
     setTimeout(() => {
       const face2 = rollPeril();
@@ -1292,11 +1306,46 @@ function doRollPeril() {
       showPerilResult(faceData2);
       resolvePeril(state, face2);
       log(state, `🎲 ${explorer.name} : ${faceData2.glyph} ${faceData2.label}. (2e dé — Malédiction)`);
-      setTimeout(() => finishPerilPhase(), 1200);
+      if (!wasErupted && state.volcano.erupted) {
+        showEruptionOverlay();
+        setTimeout(() => continuePerilPhase(state), 3000);
+      } else {
+        setTimeout(() => finishPerilPhase(), 1200);
+      }
     }, 1000);
   } else {
     setTimeout(() => finishPerilPhase(), 1200);
   }
+}
+
+function continuePerilPhase(state) {
+  if (checkGameEnd()) return;
+  finishPerilPhase();
+}
+
+function showEruptionReadyOverlay() {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:400;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `<div style="text-align:center;max-width:500px;padding:32px;">
+    <div style="font-size:64px;margin-bottom:16px;">🌋</div>
+    <h2 style="color:var(--c-lava);font-size:28px;letter-spacing:2px;margin-bottom:12px;">Le volcan gronde !</h2>
+    <p style="color:var(--c-text-dim);font-size:15px;line-height:1.6;">Le marqueur Éruption a atteint 0. À la prochaine face <b style="color:var(--c-lava)">Lave</b> au dé de Péril, l'éruption commencera !</p>
+  </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.remove(), 2500);
+}
+
+function showEruptionOverlay() {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(40,10,5,.85);z-index:400;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `<div style="text-align:center;max-width:600px;padding:32px;">
+    <div style="font-size:72px;margin-bottom:16px;">🌋🔥</div>
+    <h2 style="color:var(--c-lava);font-size:32px;letter-spacing:3px;margin-bottom:16px;">ÉRUPTION !</h2>
+    <p style="color:var(--c-text);font-size:16px;line-height:1.7;">Le volcan entre en éruption ! La lave se propage à travers le temple, retournant les tuiles une par une. Tout Explorateur pris dans la lave est englouti...</p>
+    <p style="color:var(--c-ember);font-size:14px;margin-top:12px;">Les tuiles retournent face Volcan. La partie continue tant que l'Artefact n'est pas perdu.</p>
+  </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.remove(), 2800);
 }
 
 function showPerilResult(faceData) {
@@ -1309,10 +1358,16 @@ function showPerilResult(faceData) {
 
 function finishPerilPhase() {
   const state = ui.state;
+  const wasErupted = state.volcano.erupted;
   checkEndConditions(state);
   if (checkGameEnd()) return;
   endExplorerTurn(state);
   fullRender();
+  if (!wasErupted && state.volcano.erupted) {
+    showEruptionOverlay();
+    setTimeout(() => { if (!checkGameEnd()) toast(`Au tour de ${getActiveExplorer(state).name}.`); }, 3000);
+    return;
+  }
   if (checkGameEnd()) return;
   toast(`Au tour de ${getActiveExplorer(state).name}.`);
 }
