@@ -10,9 +10,10 @@
      RESPONSIVE LAYOUT — game screen
      .screen.active { display: flex } in style.css handles visibility
      ═══════════════════════════════════════════════════════════ */
+  #screen-game { flex-direction: row; }
 
   #game-board-area {
-    flex: 1; min-width: 0; position: relative;
+    flex: 1; min-width: 0; min-height: 0; position: relative;
     background: radial-gradient(ellipse at center, #2a1f17 0%, var(--c-bg) 70%);
     overflow: hidden;
   }
